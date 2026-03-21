@@ -14,10 +14,6 @@ separately above a previous character should be merged into 'i' or 'j'.
 
 from __future__ import annotations
 
-# ---------------------------------------------------------------------------
-# Ambiguous character mapping
-# key = predicted character, value = replacement in alphabetic context
-# ---------------------------------------------------------------------------
 ALPHA_REPLACEMENTS: dict[str, str] = {
     "0": "O",
     "1": "I",
@@ -26,7 +22,6 @@ ALPHA_REPLACEMENTS: dict[str, str] = {
     "2": "Z",
 }
 
-# Reverse: digit replacement when the context is numeric
 DIGIT_REPLACEMENTS: dict[str, str] = {
     "O": "0",
     "o": "0",
@@ -40,10 +35,8 @@ DIGIT_REPLACEMENTS: dict[str, str] = {
     "z": "2",
 }
 
-# Characters that may represent a "dot" drawn in the air
 DOT_CHARS = {".", ",", "'", "`", "*"}
 
-# Characters that become dotted letters when a dot follows them
 DOT_MERGE_MAP: dict[str, str] = {
     "i": "i",   # undotted i + dot  → dotted i (no-op in ASCII)
     "I": "i",   # capital I treated as undotted i when followed by dot
@@ -88,11 +81,9 @@ def disambiguate_characters(
     result: list[dict] = [ch.copy() for ch in characters]
 
     for i, ch in enumerate(result):
-        # Skip spaces
         if ch["label"] == " ":
             continue
 
-        # High-confidence predictions are trusted
         if ch["confidence"] >= confidence_threshold:
             continue
 
@@ -104,19 +95,16 @@ def disambiguate_characters(
             else None
         )
 
-        # --- Digit inside an alphabetic word → replace with letter ---
         if label in ALPHA_REPLACEMENTS and _is_alpha_context(left, right):
             ch["label"] = ALPHA_REPLACEMENTS[label]
             ch["corrected"] = True
             continue
 
-        # --- Letter inside a numeric sequence → replace with digit ---
         if label in DIGIT_REPLACEMENTS and _is_digit_context(left, right):
             ch["label"] = DIGIT_REPLACEMENTS[label]
             ch["corrected"] = True
             continue
 
-        # --- Special: standalone "1" at word start followed by letters → "I" ---
         if label == "1" and left is None and right is not None and right.isalpha():
             ch["label"] = "I"
             ch["corrected"] = True
@@ -144,7 +132,6 @@ def merge_dots(characters: list[dict]) -> list[dict]:
             skip_next = False
             continue
 
-        # Check if THIS character can accept a dot from the NEXT one
         if i + 1 < len(characters):
             next_ch = characters[i + 1]
             if (
@@ -152,7 +139,6 @@ def merge_dots(characters: list[dict]) -> list[dict]:
                 and next_ch["confidence"] < 0.7
                 and ch["label"] in DOT_MERGE_MAP
             ):
-                # Merge: convert to the dotted character
                 new_ch = ch.copy()
                 new_ch["label"] = DOT_MERGE_MAP[ch["label"]]
                 new_ch["corrected"] = True

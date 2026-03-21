@@ -24,7 +24,6 @@ def apply_capitalization(text: str) -> str:
     if not text:
         return text
 
-    # Split into sentences (by . ? !)
     sentences = re.split(r"(?<=[.?!])\s+", text)
     result = []
 
@@ -37,21 +36,17 @@ def apply_capitalization(text: str) -> str:
         capitalized_words = []
 
         for idx, word in enumerate(words):
-            # Standalone "i" always becomes "I"
             if word.lower() == "i" and len(word) == 1:
                 capitalized_words.append("I")
                 continue
 
-            # Skip words that are pure digits or punctuation
             if not any(c.isalpha() for c in word):
                 capitalized_words.append(word)
                 continue
 
             if idx == 0:
-                # First word of sentence → capitalize
                 capitalized_words.append(word[0].upper() + word[1:].lower() if len(word) > 1 else word.upper())
             else:
-                # Interior words → lowercase
                 capitalized_words.append(word.lower())
 
         result.append(" ".join(capitalized_words))
@@ -83,7 +78,6 @@ def insert_pause_punctuation(
         pause = ch.get("pause_before_ms", 0)
 
         if pause >= double_pause_ms and result:
-            # Check if the last non-space character already has punctuation
             last_label = ""
             for prev in reversed(result):
                 if prev["label"].strip():
@@ -91,14 +85,13 @@ def insert_pause_punctuation(
                     break
 
             if last_label and last_label not in ".?!,":
-                # Insert a period
                 result.append({
                     "label": ".",
                     "confidence": 1.0,
                     "top3": ["."],
                     "auto_inserted": True,
                 })
-                # Insert space after period
+
                 result.append({
                     "label": " ",
                     "confidence": 1.0,
@@ -118,11 +111,8 @@ def clean_spacing(text: str) -> str:
       - Remove space before punctuation
       - Ensure space after punctuation
     """
-    # Collapse runs of spaces
     text = re.sub(r" {2,}", " ", text)
-    # Remove space before punctuation
     text = re.sub(r"\s+([.?!,])", r"\1", text)
-    # Ensure space after punctuation (unless end of string)
     text = re.sub(r"([.?!,])([^\s])", r"\1 \2", text)
     return text.strip()
 

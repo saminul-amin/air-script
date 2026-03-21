@@ -18,9 +18,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Try to load symspellpy; fall back to a simple approach otherwise
-# ---------------------------------------------------------------------------
 _sym_spell = None
 
 try:
@@ -28,7 +25,6 @@ try:
 
     _sym_spell = SymSpell(max_dictionary_edit_distance=2, prefix_length=7)
 
-    # Use the built-in frequency dictionary shipped with symspellpy
     import importlib.resources as _res
     import symspellpy as _pkg
 
@@ -39,9 +35,6 @@ try:
 except Exception as exc:
     logger.warning("SymSpellPy unavailable (%s); using fallback corrector", exc)
 
-# ---------------------------------------------------------------------------
-# Common short words — used for dedicated short-word correction
-# ---------------------------------------------------------------------------
 _SHORT_WORDS_1: set[str] = {
     "a", "i",
 }
@@ -52,11 +45,9 @@ _SHORT_WORDS_2: set[str] = {
     "so", "to", "up", "us", "we",
 }
 
-# Common OCR confusions for short words:  misread → correct
 _SHORT_WORD_FIXES: dict[str, str] = {
-    # 1-letter
-    "l": "i",  # lowercase L → i (very common misread)
-    # 2-letter
+    "l": "i",
+
     "ls": "is", "1s": "is", "lS": "is",
     "ln": "in", "1n": "in",
     "lt": "it", "1t": "it",
@@ -78,9 +69,6 @@ _SHORT_WORD_FIXES: dict[str, str] = {
     "be": "be", "Be": "be",
 }
 
-# ---------------------------------------------------------------------------
-# Small fallback set of very common English words (used if symspellpy fails)
-# ---------------------------------------------------------------------------
 _COMMON_WORDS: set[str] = {
     "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",
     "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
@@ -143,19 +131,16 @@ def _correct_short_word(word: str) -> str:
     """
     lower = word.lower()
 
-    # Already a valid short word? Keep it.
     if len(lower) == 1 and lower in _SHORT_WORDS_1:
         return word
     if len(lower) == 2 and lower in _SHORT_WORDS_2:
         return word
 
-    # Check the explicit OCR fix table first
     if word in _SHORT_WORD_FIXES:
         return _SHORT_WORD_FIXES[word]
     if lower in _SHORT_WORD_FIXES:
         return _apply_case_pattern(_SHORT_WORD_FIXES[lower], word)
 
-    # For 2-letter words: find closest valid short word by Levenshtein
     if len(lower) == 2:
         best, best_dist = word, 2
         for candidate in _SHORT_WORDS_2:
@@ -166,7 +151,6 @@ def _correct_short_word(word: str) -> str:
         if best_dist <= 1:
             return _apply_case_pattern(best, word)
 
-    # Single characters that aren't valid words and aren't fixable — pass through
     return word
 
 
@@ -175,11 +159,9 @@ def correct_word(word: str) -> str:
     Correct a single word using the best available method.
     Returns the corrected word (preserves case pattern if possible).
     """
-    # Don't correct pure digits or empty strings
     if word.isdigit() or not word.strip():
         return word
 
-    # --- Short-word specialist (1-2 chars) ---
     if len(word) <= 2:
         return _correct_short_word(word)
 
@@ -191,7 +173,7 @@ def correct_word(word: str) -> str:
         )
         if suggestions:
             corrected = suggestions[0].term
-            # Restore original case pattern
+
             return _apply_case_pattern(corrected, word)
         return word
     else:
