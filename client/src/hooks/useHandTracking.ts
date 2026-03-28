@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Hands } from "@mediapipe/hands";
-import { Camera } from "@mediapipe/camera_utils";
 import type { HandLandmarks } from "../types";
+
+// Fixing Vite production build issues with MediaPipe
+// MediaPipe's npm packages do not bundle correctly with Vite/Rollup for production.
+// Instead, we load them via CDN in index.html, and access their constructors via the global window object.
+const Hands = (window as any).Hands;
+const Camera = (window as any).Camera;
 
 /**
  * Custom hook that initialises MediaPipe Hands, connects to the webcam
