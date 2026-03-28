@@ -35,7 +35,7 @@ An intelligent, touchless human-computer interaction system that allows users to
 
 - **Air writing & drawing** via webcam hand tracking
 - **Dual mode** — Drawing Mode and Writing Mode
-- **Gesture controls** — draw, space, clear, undo
+- **Gesture controls**
 - **Real-time character recognition** using a CNN model
 - **Context-aware text correction** — character disambiguation, spell correction, punctuation
 - **Predictive text & autocomplete** powered by word frequency analysis

@@ -48,13 +48,13 @@ The system combines multiple AI techniques:
 * **Frontend:** React.js with Tailwind CSS  
 * **Backend:** Node.js (Express)  
 * **AI Service:** FastAPI (Python)  
-* **Libraries:** MediaPipe, OpenCV, TensorFlow/PyTorch, SymSpell, Wordfreq
+* **Libraries:** MediaPipe, OpenCV, PyTorch, SymSpell, Wordfreq
 
 ### **Key Features**
 
 * Air drawing and writing using hand gestures  
 * Dual mode (Drawing Mode & Writing Mode)  
-* Gesture-based controls (draw, space, clear)  
+* Gesture-based controls 
 * Real-time text recognition  
 * Context-aware text correction  
 * Predictive text and auto-completion  
