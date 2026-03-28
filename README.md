@@ -22,6 +22,11 @@ An intelligent, touchless human-computer interaction system that allows users to
 └─────────────────────────────────────────────────────────────┘
 ```
 
+## Live Deployment
+
+- **Frontend (Vercel):** [https://airscript-frontend.vercel.app/](https://airscript-frontend.vercel.app/)
+- **AI Backend (Hugging Face Spaces):** [https://saminul-amin-airscript-backend.hf.space](https://saminul-amin-airscript-backend.hf.space)
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -85,7 +90,7 @@ capstone-project-v3/
 ```bash
 cd ai-service
 python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -126,6 +131,15 @@ The client starts on `http://localhost:3000` with a proxy to the backend.
 3. Switch between **Drawing Mode** and **Writing Mode** using the mode toggle.
 4. Use hand gestures to write/draw in the air — the system captures strokes, recognizes characters, and builds corrected text in real time.
 5. Use the suggestions panel for auto-completion or the output panel to review and edit recognized text.
+
+## Author
+
+**Md. Saminul Amin**
+- GitHub: [@saminul-amin](https://github.com/saminul-amin)
+- LinkedIn: [Md. Saminul Amin](https://linkedin.com/in/md-saminul-amin/)
+- Contact: +880 1326 874 247
+- Email: saminul.amin@gmail.com
+- Project Repository: [air-script](https://github.com/saminul-amin/air-script)
 
 ## License
 

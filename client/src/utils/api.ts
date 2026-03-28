@@ -7,7 +7,7 @@ import type {
   LearnResponse,
 } from "../types";
 
-const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || "http://localhost:8000";
+const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL;// || "http://localhost:8000";
 
 /**
  * Send a canvas image blob to the AI service for character recognition.
