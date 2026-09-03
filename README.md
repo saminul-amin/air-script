@@ -4,23 +4,27 @@ An intelligent, touchless human-computer interaction system that allows users to
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph browser["Browser — React 18, Vite, Tailwind"]
+        direction LR
+        CAM["Webcam feed"] --> MP["MediaPipe Hands<br/>hand landmark tracking"] --> CV["Canvas<br/>stroke collection"]
+    end
+
+    GW["Express gateway — TypeScript<br/>routing, health checks,<br/>proxy to the model service"]
+
+    subgraph ai["AI service — FastAPI, Python"]
+        direction LR
+        PRE["Preprocessing<br/>10-step image pipeline"] --> CNN["CharCNN<br/>EMNIST Balanced, 47 classes<br/>TorchScript JIT"] --> COR["Correction<br/>disambiguation, SymSpell,<br/>punctuation"] --> NLP["Prediction<br/>wordfreq, autocomplete,<br/>personal dictionary"]
+    end
+
+    CV -- "REST /api/*" --> GW
+    GW -- "/predict, /process-text,<br/>/suggest, /learn" --> PRE
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Browser (React)                         │
-│  Hand Tracking (MediaPipe) → Canvas → Stroke Collection     │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ HTTP REST /api/*
-┌──────────────────────────▼──────────────────────────────────┐
-│                 Backend (Express / TypeScript)               │
-│           Route orchestration, health checks, proxy         │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ HTTP REST /predict, /process-text,
-                           │          /suggest, /learn, etc.
-┌──────────────────────────▼──────────────────────────────────┐
-│                  AI Service (FastAPI / Python)               │
-│  CNN Prediction │ Text Correction │ NLP Suggestions │ Learn │
-└─────────────────────────────────────────────────────────────┘
-```
+
+Strokes are captured entirely in the browser; the Express layer never does inference itself,
+it only routes to the Python service. The personal dictionary is the one piece of state that
+persists between sessions — it learns from corrections the user makes.
 
 ## Live Deployment
 
@@ -137,7 +141,6 @@ The client starts on `http://localhost:3000` with a proxy to the backend.
 **Md. Saminul Amin**
 - GitHub: [@saminul-amin](https://github.com/saminul-amin)
 - LinkedIn: [Md. Saminul Amin](https://linkedin.com/in/md-saminul-amin/)
-- Contact: +880 1326 874 247
 - Email: saminul.amin@gmail.com
 - Project Repository: [air-script](https://github.com/saminul-amin/air-script)
 
