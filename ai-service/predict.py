@@ -1,18 +1,18 @@
 """
-predict.py — Inference logic using the new preprocessing pipeline.
+predict.py — Inference logic using the preprocessing pipeline.
 
 Uses model_loader for a JIT-traced singleton model and
 preprocessing.py for the robust image pipeline.
 Returns top-1 prediction with confidence and top-3 alternatives.
+
+``predict_character`` raises ``ModelNotReadyError`` if trained weights
+are unavailable — callers must surface that, never fall back.
 """
 
 import torch
-import numpy as np
 
-from model_loader import get_model, EMNIST_LABELS
+from model_loader import get_model, EMNIST_LABELS, ModelNotReadyError  # noqa: F401 — re-exported
 from preprocessing import preprocess_image
-
-_model = get_model()
 
 
 def predict_character(image_bytes: bytes) -> dict:
@@ -20,6 +20,8 @@ def predict_character(image_bytes: bytes) -> dict:
     Full prediction pipeline:
         image bytes → preprocess → inference → top-3 results
     """
+    model = get_model()  # raises ModelNotReadyError when weights are absent
+
     processed = preprocess_image(image_bytes)
 
     if processed is None:
@@ -27,12 +29,13 @@ def predict_character(image_bytes: bytes) -> dict:
             "prediction": "",
             "confidence": 0.0,
             "top3": [],
+            "top3_confidences": [],
         }
 
     tensor = torch.from_numpy(processed).unsqueeze(0).unsqueeze(0)
 
     with torch.no_grad():
-        logits = _model(tensor)
+        logits = model(tensor)
         probs = torch.softmax(logits, dim=1)[0]
 
     top3_vals, top3_idxs = torch.topk(probs, k=3)
@@ -48,4 +51,5 @@ def predict_character(image_bytes: bytes) -> dict:
         "prediction": best["label"],
         "confidence": best["confidence"],
         "top3": [entry["label"] for entry in top3],
+        "top3_confidences": [entry["confidence"] for entry in top3],
     }

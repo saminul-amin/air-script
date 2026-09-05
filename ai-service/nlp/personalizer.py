@@ -13,12 +13,16 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_DICT_PATH = Path(__file__).parent.parent / "data" / "personal_dictionary.json"
+_DICT_PATH = Path(
+    os.environ.get("AIRSCRIPT_PERSONAL_DICT_PATH")
+    or (Path(__file__).parent.parent / "data" / "personal_dictionary.json")
+)
 _lock = threading.Lock()
 
 # In-memory dictionary: { lowercase_wrong: corrected_word }
