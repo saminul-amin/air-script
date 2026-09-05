@@ -199,7 +199,13 @@ def correct_text(text: str) -> str:
     result = []
     for token in tokens:
         if token.strip() and any(c.isalpha() for c in token):
-            result.append(correct_word(token))
+            # Keep trailing punctuation (e.g. a pause-inserted period) out of
+            # the lookup so it is neither "corrected away" nor mangled.
+            match = re.match(r"^(.*?)([.?!,;:]+)$", token)
+            if match:
+                result.append(correct_word(match.group(1)) + match.group(2))
+            else:
+                result.append(correct_word(token))
         else:
             result.append(token)
     return "".join(result)

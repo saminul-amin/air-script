@@ -51,7 +51,14 @@ def apply_capitalization(text: str) -> str:
 
         result.append(" ".join(capitalized_words))
 
-    return ". ".join(result) if len(result) > 1 else (result[0] if result else "")
+    # Re-join sentences. A sentence that already ends with terminal punctuation
+    # is followed by a single space; one that does not gets ". " added.
+    out = ""
+    for sentence in result:
+        if out:
+            out += " " if out[-1] in ".?!" else ". "
+        out += sentence
+    return out
 
 
 def insert_pause_punctuation(
