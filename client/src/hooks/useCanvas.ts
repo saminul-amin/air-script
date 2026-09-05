@@ -1,10 +1,20 @@
 import { useCallback, useRef, useState } from "react";
-import { smoothCoordinate, catmullRomSmooth } from "../utils/drawing";
+import { smoothCoordinate } from "../utils/drawing";
 import { validateStroke, shouldAttachDot } from "../utils/strokeValidator";
+import { paintStrokes, strokesToImageBlob, forRecognition } from "../utils/strokePayload";
 import type { Point, Stroke, StrokeStyle, StrokeResult, BBox } from "../types";
 
-const DEFAULT_COLOR = "#00e5ff";
+export const DEFAULT_COLOR = "#1c1f27"; // --ink
 const DEFAULT_LINE_WIDTH = 4;
+
+// Speed-sensitive ink: fast segments thin out, slow ones thicken, within these bounds.
+const INK_MIN_FACTOR = 0.55;
+const INK_MAX_FACTOR = 1.25;
+const INK_SPEED_REF = 18; // px per point at which the line reaches its thinnest
+const INK_SMOOTHING = 0.25;
+
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 
 /**
  * useCanvas — manages the drawing canvas with:
@@ -17,8 +27,9 @@ export default function useCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const prevPoint = useRef<Point | null>(null);
 
-  // Current stroke being drawn (array of {x,y} points)
+  // Current stroke being drawn (array of {x,y} points) and its per-point ink widths
   const currentStroke = useRef<Point[]>([]);
+  const currentWidths = useRef<number[]>([]);
   // Stroke color/width at time of stroke start
   const currentStrokeStyle = useRef<StrokeStyle>({ color: DEFAULT_COLOR, width: DEFAULT_LINE_WIDTH });
 
@@ -54,21 +65,7 @@ export default function useCanvas() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    for (const stroke of undoStack.current) {
-      if (stroke.points.length < 2) continue;
-      const smooth = catmullRomSmooth(stroke.points);
-      ctx.beginPath();
-      ctx.moveTo(smooth[0].x, smooth[0].y);
-      for (let i = 1; i < smooth.length; i++) {
-        ctx.lineTo(smooth[i].x, smooth[i].y);
-      }
-      ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = stroke.width;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
-    }
+    paintStrokes(ctx, undoStack.current);
   }, []);
 
   // ── Public: move drawing cursor / draw a segment ────────────────────
@@ -90,9 +87,21 @@ export default function useCanvas() {
       // Start new stroke if needed
       if (currentStroke.current.length === 0) {
         currentStrokeStyle.current = { color: strokeColor, width: lineWidth };
+        currentWidths.current = [];
         strokeStartTime.current = performance.now();
       }
       currentStroke.current.push({ x: px, y: py });
+
+      // Ink width follows pointer speed (constant under reduced motion).
+      const base = currentStrokeStyle.current.width;
+      let width = base;
+      if (!prefersReducedMotion() && prevPoint.current) {
+        const speed = Math.hypot(px - prevPoint.current.x, py - prevPoint.current.y);
+        const factor = INK_MAX_FACTOR - (INK_MAX_FACTOR - INK_MIN_FACTOR) * Math.min(1, speed / INK_SPEED_REF);
+        const prevWidth = currentWidths.current[currentWidths.current.length - 1] ?? base;
+        width = prevWidth + (base * factor - prevWidth) * INK_SMOOTHING;
+      }
+      currentWidths.current.push(width);
 
       // Draw incremental segment for responsiveness
       if (prevPoint.current) {
@@ -100,7 +109,7 @@ export default function useCanvas() {
         ctx.moveTo(prevPoint.current.x, prevPoint.current.y);
         ctx.lineTo(px, py);
         ctx.strokeStyle = currentStrokeStyle.current.color;
-        ctx.lineWidth = currentStrokeStyle.current.width;
+        ctx.lineWidth = width;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         ctx.stroke();
@@ -117,7 +126,9 @@ export default function useCanvas() {
 
   const finishStroke = useCallback((): StrokeResult => {
     const points = [...currentStroke.current];
+    const widths = prefersReducedMotion() ? undefined : [...currentWidths.current];
     currentStroke.current = [];
+    currentWidths.current = [];
     prevPoint.current = null;
 
     if (points.length <= 1) {
@@ -140,6 +151,7 @@ export default function useCanvas() {
         points,
         color: currentStrokeStyle.current.color,
         width: currentStrokeStyle.current.width,
+        widths,
       });
       redoStack.current = [];
       setCanUndo(true);
@@ -159,6 +171,7 @@ export default function useCanvas() {
           points,
           color: currentStrokeStyle.current.color,
           width: currentStrokeStyle.current.width,
+          widths,
         });
         redoStack.current = [];
         setCanUndo(true);
@@ -219,6 +232,7 @@ export default function useCanvas() {
     undoStack.current = [];
     redoStack.current = [];
     currentStroke.current = [];
+    currentWidths.current = [];
     prevPoint.current = null;
     strokeStartTime.current = null;
     lastValidBbox.current = null;
@@ -232,18 +246,10 @@ export default function useCanvas() {
   const getSnapshot = useCallback((): Promise<Blob | null> => {
     const canvas = canvasRef.current;
     if (!canvas) return Promise.resolve(null);
-
-    const offscreen = document.createElement("canvas");
-    offscreen.width = canvas.width;
-    offscreen.height = canvas.height;
-    const ctx = offscreen.getContext("2d");
-    ctx.translate(offscreen.width, 0);
-    ctx.scale(-1, 1);
-    ctx.drawImage(canvas, 0, 0);
-
-    return new Promise((resolve) => {
-      offscreen.toBlob((blob) => resolve(blob), "image/png");
-    });
+    if (undoStack.current.length === 0) return Promise.resolve(null);
+    // Re-paint the strokes in recognition ink rather than copying the pixels,
+    // so the on-screen colour (dark ink on paper) never affects the model.
+    return strokesToImageBlob(forRecognition(undoStack.current), canvas.width, canvas.height, true);
   }, []);
 
   /** Export the canvas as a downloadable PNG (un-mirrored, original) */
@@ -261,8 +267,11 @@ export default function useCanvas() {
     }, "image/png");
   }, []);
 
+  const hasStrokes = canUndo;
+
   return {
     canvasRef,
+    hasStrokes,
     drawSegment,
     finishStroke,
     resetPrev,

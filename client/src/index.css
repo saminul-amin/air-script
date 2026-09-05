@@ -1,47 +1,129 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design tokens (see docs/design-plan.md) ─────────────────────────── */
+:root {
+  /* desk */
+  --desk-0: #0b0d12;
+  --desk-1: #12151c;
+  --desk-2: #1a1e27;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+
+  /* paper */
+  --paper: #f7f4ee;
+  --paper-edge: #e6e1d7;
+  --paper-rule: rgba(28, 31, 39, 0.1);
+  --ink: #1c1f27;
+  --ink-soft: rgba(28, 31, 39, 0.45);
+
+  /* text on the desk */
+  --text-0: #f3f4f6;
+  --text-1: #a3a9b5;
+  --text-2: #6b7280;
+
+  /* the one accent */
+  --accent: #ff6a3d;
+  --accent-ink: #ffd9cc;
+  --accent-soft: rgba(255, 106, 61, 0.14);
+
+  /* semantic */
+  --ok: #3ddc97;
+  --warn: #f5b72f;
+  --danger: #ff5c5c;
+
+  /* motion */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 140ms;
+  --dur-base: 200ms;
+  --dur-slow: 260ms;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: var(--desk-0);
+  color: var(--text-0);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
 }
 
-/* ── Glass variants ──────────────────────────────────────────────────── */
-.glass {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+button {
+  font: inherit;
+  color: inherit;
 }
 
-.glass-strong {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+button:focus-visible,
+[role="button"]:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-/* ── Animated canvas glow border ─────────────────────────────────────── */
-@keyframes canvas-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.15), 0 0 60px rgba(99, 102, 241, 0.05); }
-  50% { box-shadow: 0 0 30px rgba(139, 92, 246, 0.2), 0 0 80px rgba(139, 92, 246, 0.08); }
+/* ── Utilities ───────────────────────────────────────────────────────── */
+.label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-2);
 }
 
-.canvas-glow {
-  animation: canvas-glow 4s ease-in-out infinite;
+.transition-ui {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: var(--dur-base);
+  transition-timing-function: var(--ease-out);
 }
 
-/* ── Scrollbar ───────────────────────────────────────────────────────── */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+/* The paper's ruled baseline (writing mode) */
+.paper-rule {
+  background-image: linear-gradient(to bottom, transparent calc(70% - 1px), var(--paper-rule) calc(70% - 1px), var(--paper-rule) 70%, transparent 70%);
+}
 
-/* Pretty thin scrollbar for output panel */
+/* Accent underline that fades: applied to words the pipeline just changed */
+.word-changed {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 3px;
+  text-underline-offset: 0.12em;
+  color: var(--accent-ink);
+  transition: color var(--dur-slow) var(--ease-out), text-decoration-color 600ms var(--ease-out);
+}
+
 .thin-scrollbar::-webkit-scrollbar { width: 4px; }
 .thin-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.thin-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
-.thin-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+.thin-scrollbar::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+
+@keyframes caret-blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+.caret { animation: caret-blink 1s steps(1) infinite; }
+
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 183, 47, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(245, 183, 47, 0); }
+}
+.dot-pulse { animation: dot-pulse 1.6s var(--ease-out) infinite; }
+
+/* ── Reduced motion: no animation, no transitions, no pulses ─────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .caret { opacity: 1; }
+}

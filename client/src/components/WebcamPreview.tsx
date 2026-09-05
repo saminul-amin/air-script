@@ -1,13 +1,16 @@
 import { useRef, useEffect, RefObject } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useMotion, DUR } from "../motion";
 
 interface WebcamPreviewProps {
   sourceVideoRef: RefObject<HTMLVideoElement | null>;
   visible: boolean;
 }
 
+/** Small mirrored preview in the paper's corner. The stream never leaves the browser. */
 export default function WebcamPreview({ sourceVideoRef, visible }: WebcamPreviewProps) {
   const previewRef = useRef<HTMLVideoElement>(null);
+  const { rise } = useMotion();
 
   useEffect(() => {
     if (visible && sourceVideoRef?.current && previewRef.current) {
@@ -20,21 +23,11 @@ export default function WebcamPreview({ sourceVideoRef, visible }: WebcamPreview
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.85, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.85, y: 10 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          className="absolute top-3 right-3 z-20 w-40 rounded-2xl overflow-hidden border border-white/15 shadow-2xl shadow-black/30"
+          {...rise(8, DUR.slow)}
+          className="absolute bottom-3 right-3 w-36 overflow-hidden rounded-lg border border-desk-0/40 shadow-lg"
           style={{ aspectRatio: "4/3" }}
         >
-          <video
-            ref={previewRef}
-            className="w-full h-full object-cover -scale-x-100"
-            autoPlay
-            playsInline
-            muted
-          />
-          <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 pointer-events-none" />
+          <video ref={previewRef} className="h-full w-full -scale-x-100 object-cover" autoPlay playsInline muted />
         </motion.div>
       )}
     </AnimatePresence>

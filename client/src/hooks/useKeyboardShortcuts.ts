@@ -1,20 +1,10 @@
 import { useEffect, useCallback } from "react";
 import type { AppMode } from "../types";
 
-/**
- * Color palette — must match the COLORS array in ColorPicker.jsx.
- * Keys "1"–"8" map to these values.
- */
-const COLOR_MAP: Record<number, string> = {
-  1: "#00e5ff",
-  2: "#ffffff",
-  3: "#ef4444",
-  4: "#22c55e",
-  5: "#eab308",
-  6: "#a855f7",
-  7: "#f97316",
-  8: "#ec4899",
-};
+import { COLORS } from "../components/ColorPicker";
+
+/** Keys "1"–"8" select the matching swatch in ColorPicker. */
+const COLOR_MAP: Record<number, string> = Object.fromEntries(COLORS.map((c, i) => [i + 1, c.value]));
 
 /**
  * useKeyboardShortcuts — centralised keyboard handler.
@@ -46,6 +36,7 @@ interface KeyboardShortcutOptions {
   clearCurrentChar: () => void;
   clearAll: () => void;
   exportText: () => void;
+  recognizeNow: () => void;
   setStrokeColor: (color: string) => void;
   showShortcuts: boolean;
   setShowShortcuts: React.Dispatch<React.SetStateAction<boolean>>;
@@ -63,6 +54,7 @@ export default function useKeyboardShortcuts({
   clearCurrentChar,
   clearAll,
   exportText,
+  recognizeNow,
   setStrokeColor,
   showShortcuts,
   setShowShortcuts,
@@ -98,6 +90,13 @@ export default function useKeyboardShortcuts({
       if (code === "Space" && mode === "writing") {
         e.preventDefault();
         addSpace();
+        return;
+      }
+
+      // ── Enter → recognise the current drawing (writing mode) ─────
+      if (key === "Enter" && mode === "writing") {
+        e.preventDefault();
+        recognizeNow();
         return;
       }
 
@@ -152,6 +151,7 @@ export default function useKeyboardShortcuts({
       clearCurrentChar,
       clearAll,
       exportText,
+      recognizeNow,
       setStrokeColor,
       showShortcuts,
       setShowShortcuts,
