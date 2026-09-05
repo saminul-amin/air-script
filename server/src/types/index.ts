@@ -9,10 +9,25 @@ export interface EnvConfig {
 
 // ── Health ──────────────────────────────────────────────────────────────
 
+export interface AIHealth {
+  reachable: boolean;
+  status: string;
+  version?: string;
+  model?: {
+    loaded: boolean;
+    architecture?: string;
+    dataset?: string;
+    num_classes?: number;
+    sha256?: string | null;
+    error?: string | null;
+  };
+}
+
 export interface HealthStatus {
   status: string;
   timestamp: string;
   service: string;
+  ai: AIHealth;
 }
 
 // ── AI Service (FastAPI) ────────────────────────────────────────────────
@@ -20,6 +35,8 @@ export interface HealthStatus {
 /** Error thrown when the AI service returns a non-OK response. */
 export interface AIServiceError extends Error {
   status?: number;
+  /** true when the AI service answered with an error; false when it was unreachable. */
+  upstream?: boolean;
 }
 
 /** POST /predict – multipart image → prediction result. */
@@ -27,6 +44,7 @@ export interface PredictionResponse {
   prediction: string;
   confidence: number;
   top3: string[];
+  top3_confidences?: number[];
 }
 
 /** POST /predict-character – single character prediction. */

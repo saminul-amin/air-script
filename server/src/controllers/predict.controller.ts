@@ -2,89 +2,68 @@ import { Request, Response } from "express";
 import * as predictService from "../services/predict.service";
 import { AIServiceError } from "../types";
 
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://localhost:8000";
+/** Send an upstream/network failure to the client with its real status and message. */
+function sendError(res: Response, err: unknown): void {
+  const error = err as AIServiceError;
+  const status = error.status || 502;
+  res.status(status).json({
+    error: error.message || "AI service unavailable",
+    upstreamStatus: error.upstream ? status : undefined,
+  });
+}
 
 export const proxyPredict = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await predictService.forwardToAI(req);
-    res.json(result);
+    res.json(await predictService.forwardToAI(req, "/predict"));
   } catch (err) {
-    const error = err as AIServiceError;
-    const status = error.status || 502;
-    res.status(status).json({ error: error.message || "AI service unavailable" });
+    sendError(res, err);
   }
 };
 
 export const proxyPredictCharacter = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await predictService.forwardToAI(req, "/predict-character");
-    res.json(result);
+    res.json(await predictService.forwardToAI(req, "/predict-character"));
   } catch (err) {
-    const error = err as AIServiceError;
-    const status = error.status || 502;
-    res.status(status).json({ error: error.message || "AI service unavailable" });
+    sendError(res, err);
   }
 };
 
 export const proxyProcessText = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await predictService.forwardJSON(req.body, "/process-text");
-    res.json(result);
+    res.json(await predictService.forwardJSON(req.body, "/process-text"));
   } catch (err) {
-    const error = err as AIServiceError;
-    const status = error.status || 502;
-    res.status(status).json({ error: error.message || "AI service unavailable" });
+    sendError(res, err);
   }
 };
 
 export const proxySuggest = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await predictService.forwardJSON(req.body, "/suggest");
-    res.json(result);
+    res.json(await predictService.forwardJSON(req.body, "/suggest"));
   } catch (err) {
-    const error = err as AIServiceError;
-    const status = error.status || 502;
-    res.status(status).json({ error: error.message || "AI service unavailable" });
+    sendError(res, err);
   }
 };
 
 export const proxyAutocomplete = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await predictService.forwardJSON(req.body, "/autocomplete");
-    res.json(result);
+    res.json(await predictService.forwardJSON(req.body, "/autocomplete"));
   } catch (err) {
-    const error = err as AIServiceError;
-    const status = error.status || 502;
-    res.status(status).json({ error: error.message || "AI service unavailable" });
+    sendError(res, err);
   }
 };
 
 export const proxyLearn = async (req: Request, res: Response): Promise<void> => {
   try {
-    const result = await predictService.forwardJSON(req.body, "/learn");
-    res.json(result);
+    res.json(await predictService.forwardJSON(req.body, "/learn"));
   } catch (err) {
-    const error = err as AIServiceError;
-    const status = error.status || 502;
-    res.status(status).json({ error: error.message || "AI service unavailable" });
+    sendError(res, err);
   }
 };
 
 export const proxyPersonalDict = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const response = await fetch(`${AI_SERVICE_URL}/personal-dict`);
-    if (!response.ok) {
-      const err: AIServiceError = new Error(
-        `AI service responded with ${response.status}`
-      );
-      err.status = response.status;
-      throw err;
-    }
-    const result = await response.json();
-    res.json(result);
+    res.json(await predictService.fetchFromAI("/personal-dict"));
   } catch (err) {
-    const error = err as AIServiceError;
-    const status = error.status || 502;
-    res.status(status).json({ error: error.message || "AI service unavailable" });
+    sendError(res, err);
   }
 };
