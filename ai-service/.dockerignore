@@ -1,0 +1,12 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/EMNIST/
+data/MNIST/
+data/personal_dictionary.json
+tests/
+.env
+.env.*
+!.env.example

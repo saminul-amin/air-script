@@ -1,7 +1,14 @@
+# Runtime dependencies for the AirScript AI service.
+#
+# torch comes from the official CPU-only wheel index so the Docker image and
+# the Hugging Face Space do not download CUDA libraries they cannot use.
+# macOS has no "+cpu" wheels; its default wheel is already CPU-only.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.0+cpu; sys_platform != "darwin"
+torch==2.14.0; sys_platform == "darwin"
+
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
-torch>=2.2.0
-torchvision>=0.17.0
 Pillow>=10.2.0
 numpy>=1.26.0
 python-multipart>=0.0.9
