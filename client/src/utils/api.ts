@@ -5,73 +5,72 @@ import type {
   SuggestResponse,
   AutocompleteResponse,
   LearnResponse,
+  ServiceHealth,
 } from "../types";
+import { API_BASE_URL } from "../config";
+import { buildProcessTextPayload } from "./strokePayload";
 
-const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL;// || "http://localhost:8000";
+/** Error thrown for non-OK responses, carrying the HTTP status and server detail. */
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+async function readError(res: Response): Promise<ApiError> {
+  let detail = `Service error ${res.status}`;
+  try {
+    const body = (await res.json()) as { detail?: unknown; error?: unknown };
+    const message = body.detail ?? body.error;
+    if (typeof message === "string" && message.trim()) detail = message;
+  } catch {
+    // keep the generic message
+  }
+  return new ApiError(res.status, detail);
+}
 
 /**
- * Send a canvas image blob to the AI service for character recognition.
- * @param {Blob} imageBlob - PNG blob of the canvas drawing
- * @returns {Promise<{prediction: string, confidence: number, top3: string[]}>}
+ * Send a canvas image blob for character recognition.
  */
 export async function recognizeCharacter(imageBlob: Blob): Promise<CharacterPrediction> {
   const formData = new FormData();
   formData.append("file", imageBlob, "drawing.png");
 
-  const res = await fetch(`${AI_SERVICE_URL}/predict-character`, {
+  const res = await fetch(`${API_BASE_URL}/predict-character`, {
     method: "POST",
     body: formData,
   });
 
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({}));
-    throw new Error(errBody.detail || `AI service error: ${res.status}`);
-  }
-
+  if (!res.ok) throw await readError(res);
   return res.json();
 }
 
 /**
  * Send accumulated characters to the correction pipeline.
- * @param {Array<{label: string, confidence: number, top3?: string[], pause_before_ms?: number}>} characters
- * @returns {Promise<{raw_text: string, corrected_text: string, stages: object}>}
  */
-export async function processText(
-  characters: RecognizedChar[],
-): Promise<ProcessTextResponse> {
-  const res = await fetch(`${AI_SERVICE_URL}/process-text`, {
+export async function processText(characters: RecognizedChar[]): Promise<ProcessTextResponse> {
+  const res = await fetch(`${API_BASE_URL}/process-text`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      raw_characters: characters.map((ch) => ({
-        label: ch.label,
-        confidence: ch.confidence ?? 0,
-        top3: ch.top3 ?? [],
-        pause_before_ms: ch.pauseBeforeMs ?? 0,
-      })),
-    }),
+    body: JSON.stringify(buildProcessTextPayload(characters)),
   });
 
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({}));
-    throw new Error(errBody.detail || `AI service error: ${res.status}`);
-  }
-
+  if (!res.ok) throw await readError(res);
   return res.json();
 }
 
 /**
- * Get word suggestions for a partial word.
- * @param {string} prefix - The partial word typed so far
- * @param {string} context - Full text context for next-word prediction
- * @param {number} limit - Max suggestions to return
+ * Get word suggestions for a partial word plus next-word predictions.
  */
 export async function fetchSuggestions(
   prefix: string,
   context: string = "",
   limit: number = 5,
 ): Promise<SuggestResponse> {
-  const res = await fetch(`${AI_SERVICE_URL}/suggest`, {
+  const res = await fetch(`${API_BASE_URL}/suggest`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prefix, context, limit }),
@@ -82,15 +81,13 @@ export async function fetchSuggestions(
 }
 
 /**
- * Get auto-completion for a partial word.
- * @param {string} partial - The partial word
- * @param {string} context - Full text context
+ * Get the single best auto-completion for a partial word.
  */
 export async function fetchAutocomplete(
   partial: string,
   context: string = "",
 ): Promise<AutocompleteResponse> {
-  const res = await fetch(`${AI_SERVICE_URL}/autocomplete`, {
+  const res = await fetch(`${API_BASE_URL}/autocomplete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ partial, context }),
@@ -102,14 +99,9 @@ export async function fetchAutocomplete(
 
 /**
  * Send a user correction to the personal dictionary.
- * @param {string} wrong - The original (wrong) word
- * @param {string} correct - The user's correction
  */
-export async function learnCorrection(
-  wrong: string,
-  correct: string,
-): Promise<LearnResponse | null> {
-  const res = await fetch(`${AI_SERVICE_URL}/learn`, {
+export async function learnCorrection(wrong: string, correct: string): Promise<LearnResponse | null> {
+  const res = await fetch(`${API_BASE_URL}/learn`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ wrong, correct }),
@@ -117,4 +109,40 @@ export async function learnCorrection(
 
   if (!res.ok) return null;
   return res.json();
+}
+
+interface RawHealth {
+  status?: string;
+  version?: string;
+  model?: { loaded?: boolean; sha256?: string | null; error?: string | null };
+  ai?: { reachable?: boolean; status?: string; version?: string; model?: RawHealth["model"] };
+}
+
+/**
+ * Probe the backend. Understands both the gateway shape ({ ai: { model } })
+ * and the direct AI-service shape ({ model }).
+ */
+export async function fetchHealth(signal?: AbortSignal): Promise<ServiceHealth> {
+  const res = await fetch(`${API_BASE_URL}/health`, { signal, cache: "no-store" });
+  if (!res.ok) throw new ApiError(res.status, `Health check failed with ${res.status}`);
+  const body = (await res.json()) as RawHealth;
+
+  if (body.ai) {
+    return {
+      reachable: body.ai.reachable !== false,
+      modelLoaded: body.ai.model?.loaded === true,
+      version: body.ai.version,
+      error: body.ai.model?.error ?? (body.ai.reachable === false ? body.ai.status : null),
+    };
+  }
+  if (!body.model) {
+    // Pre-4.1 service: answers /health but does not report its weights.
+    return { reachable: true, modelLoaded: true, legacy: true, version: body.version, error: null };
+  }
+  return {
+    reachable: true,
+    modelLoaded: body.model.loaded === true,
+    version: body.version,
+    error: body.model.error ?? null,
+  };
 }

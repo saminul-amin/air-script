@@ -21,6 +21,8 @@ export interface Stroke {
   points: Point[];
   color: string;
   width: number;
+  /** Per-point width for speed-sensitive ink; absent means constant `width`. */
+  widths?: number[];
 }
 
 export interface StrokeResult {
@@ -68,6 +70,7 @@ export interface CharacterPrediction {
   prediction: string;
   confidence: number;
   top3: string[];
+  top3_confidences?: number[];
 }
 
 export interface ProcessTextPayload {
@@ -124,3 +127,36 @@ export interface LearnResponse {
 }
 
 export type AppMode = "drawing" | "writing";
+
+/** Where strokes come from. Pointer (mouse / touch / pen) is the default; camera is opt-in. */
+export type InputSource = "pointer" | "camera";
+
+/** Lifecycle of the in-browser hand tracker. */
+export type TrackingState = "off" | "starting" | "ready" | "error";
+
+/** Backend reachability, including the cold-start of a sleeping free-tier service. */
+export type ServiceState = "checking" | "waking" | "ready" | "degraded" | "offline";
+
+export interface ServiceHealth {
+  reachable: boolean;
+  modelLoaded: boolean;
+  /** True when the service predates weight reporting in /health. */
+  legacy?: boolean;
+  version?: string;
+  error?: string | null;
+}
+
+/** A recorded stroke sequence that can be replayed through the pipeline. */
+export interface SampleCharacter {
+  /** What the strokes are meant to read as (for display only). */
+  char: string;
+  /** Strokes in screen coordinates on a CANVAS_WIDTH × CANVAS_HEIGHT surface. */
+  strokes: Point[][];
+}
+
+export interface Sample {
+  id: string;
+  label: string;
+  description: string;
+  characters: SampleCharacter[];
+}

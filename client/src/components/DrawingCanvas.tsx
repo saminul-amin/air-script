@@ -5,25 +5,32 @@ interface DrawingCanvasProps {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   width: number;
   height: number;
-  whiteboard?: boolean;
+  /** Accept mouse, pen and touch input. Off while hand tracking drives the canvas. */
+  pointerEnabled?: boolean;
+  className?: string;
   onPointerDrawStart?: (coords: Point) => void;
   onPointerDrawMove?: (coords: Point) => void;
   onPointerDrawEnd?: () => void;
 }
 
 /**
- * DrawingCanvas – HTML5 Canvas with Pointer Events API for hand/mouse/stylus.
+ * DrawingCanvas — HTML5 canvas driven by the Pointer Events API, so mouse,
+ * stylus and touch all feed the same stroke pipeline as hand tracking.
+ *
+ * The canvas is mirrored with CSS (so camera input behaves like a mirror);
+ * pointer coordinates are flipped back so strokes land under the cursor.
  */
 export default function DrawingCanvas({
   canvasRef,
   width,
   height,
-  whiteboard = false,
+  pointerEnabled = true,
+  className = "",
   onPointerDrawStart,
   onPointerDrawMove,
   onPointerDrawEnd,
 }: DrawingCanvasProps) {
-  const pointerActive = useRef(false);
+  const activePointer = useRef<number | null>(null);
 
   const getCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -38,41 +45,45 @@ export default function DrawingCanvas({
   };
 
   const handleDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (e.pointerType === "touch") return;
-    pointerActive.current = true;
-    e.currentTarget.setPointerCapture(e.pointerId);
+    if (!pointerEnabled || activePointer.current !== null) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    activePointer.current = e.pointerId;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Synthetic or already-released pointers cannot be captured; drawing still works.
+    }
     const coords = getCoords(e);
     if (coords && onPointerDrawStart) onPointerDrawStart(coords);
   };
 
   const handleMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!pointerActive.current) return;
+    if (activePointer.current !== e.pointerId) return;
     const coords = getCoords(e);
     if (coords && onPointerDrawMove) onPointerDrawMove(coords);
   };
 
-  const handleUp = () => {
-    if (!pointerActive.current) return;
-    pointerActive.current = false;
+  const handleUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointer.current !== e.pointerId) return;
+    activePointer.current = null;
     if (onPointerDrawEnd) onPointerDrawEnd();
   };
 
   return (
-    <>
-      {whiteboard && (
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white rounded-2xl" />
-      )}
-      <canvas
-        ref={canvasRef}
-        width={width}
-        height={height}
-        className="absolute inset-0 w-full h-full -scale-x-100 cursor-crosshair"
-        style={{ touchAction: "none" }}
-        onPointerDown={handleDown}
-        onPointerMove={handleMove}
-        onPointerUp={handleUp}
-        onPointerCancel={handleUp}
-      />
-    </>
+    <canvas
+      ref={canvasRef}
+      width={width}
+      height={height}
+      className={`absolute inset-0 w-full h-full -scale-x-100 ${
+        pointerEnabled ? "cursor-crosshair" : "cursor-default"
+      } ${className}`}
+      style={{ touchAction: "none" }}
+      onPointerDown={handleDown}
+      onPointerMove={handleMove}
+      onPointerUp={handleUp}
+      onPointerCancel={handleUp}
+      aria-label="Drawing surface"
+      role="img"
+    />
   );
 }

@@ -26,7 +26,9 @@ export default function useWordBuilder(getSnapshot, clearCanvas) {
   const pauseTimer = useRef(null);
   const correctionTimer = useRef(null);
   const hasNewStrokes = useRef(false);
-  const lastStopTime = useRef(null);
+  const lastStopTime = useRef<number | null>(null); // when the previous character's last stroke ended
+  const pendingPauseMs = useRef(0);                  // idle time before the current character's first stroke
+  const ignorePauses = useRef(false);                // true while a scripted replay drives the canvas
 
   // Refs so scheduleCorrection can read current values without re-creating
   const userEditRef = useRef(null);      // mirrors userEditedText state
@@ -104,12 +106,13 @@ export default function useWordBuilder(getSnapshot, clearCanvas) {
           return;
         }
 
+        // Idle time between the previous character and the first stroke of
+        // this one, captured when the stroke began — not when the network
+        // reply arrives — so a slow backend never turns into a fake "pause".
+        const pauseMs = pendingPauseMs.current;
+
         const result = await recognizeCharacter(blob);
         if (result.prediction) {
-          const now = Date.now();
-          const pauseMs = lastStopTime.current
-            ? now - lastStopTime.current
-            : 0;
 
           setLastResult(result);
           const newChar = {
@@ -137,14 +140,20 @@ export default function useWordBuilder(getSnapshot, clearCanvas) {
 
   /** Call this every time a draw segment is added */
   const onStroke = useCallback(() => {
+    if (!hasNewStrokes.current) {
+      pendingPauseMs.current =
+        !ignorePauses.current && lastStopTime.current !== null
+          ? Math.max(0, Date.now() - lastStopTime.current)
+          : 0;
+    }
     hasNewStrokes.current = true;
     if (pauseTimer.current) clearTimeout(pauseTimer.current);
   }, []);
 
   /** Call this when drawing stops (finger lifted / gesture lost) */
   const onDrawingStop = useCallback(() => {
-    lastStopTime.current = Date.now();
     if (!hasNewStrokes.current) return;
+    lastStopTime.current = Date.now();
 
     if (pauseTimer.current) clearTimeout(pauseTimer.current);
     pauseTimer.current = setTimeout(async () => {
@@ -175,6 +184,7 @@ export default function useWordBuilder(getSnapshot, clearCanvas) {
     if (pauseTimer.current) clearTimeout(pauseTimer.current);
     pauseTimer.current = null;
     hasNewStrokes.current = false;
+    pendingPauseMs.current = 0;
     clearCanvas();
   }, [clearCanvas]);
 
@@ -185,6 +195,8 @@ export default function useWordBuilder(getSnapshot, clearCanvas) {
     pauseTimer.current = null;
     correctionTimer.current = null;
     hasNewStrokes.current = false;
+    pendingPauseMs.current = 0;
+    lastStopTime.current = null;
     setWord([]);
     setLastResult(null);
     setError(null);
@@ -220,6 +232,11 @@ export default function useWordBuilder(getSnapshot, clearCanvas) {
     [scheduleCorrection],
   );
 
+  /** Ignore idle time between characters (scripted replays should not trigger pause punctuation). */
+  const setIgnorePauses = useCallback((value: boolean) => {
+    ignorePauses.current = value;
+  }, []);
+
   /** Toggle raw/corrected display */
   const toggleCorrected = useCallback(() => {
     setShowCorrected((prev) => !prev);
@@ -251,5 +268,6 @@ export default function useWordBuilder(getSnapshot, clearCanvas) {
     addSpace,
     injectChar,
     toggleCorrected,
+    setIgnorePauses,
   };
 }
