@@ -25,7 +25,7 @@ export default function ConnectionStrip({ state, health, elapsedMs, onRetry }: C
 
   if (state === "waking") {
     text = BACKEND_MAY_SLEEP
-      ? `Waking the recognition service. The free tier sleeps when idle and takes up to a minute — ${seconds}s so far. You can draw meanwhile.`
+      ? `Waking the recognition service. The free tier sleeps when idle and can take a couple of minutes — ${seconds}s so far. You can draw meanwhile.`
       : `Recognition service not answering yet, retrying (${seconds}s). Check that the AI service and gateway are running.`;
   } else if (state === "degraded") {
     icon = <AlertTriangle className="h-3.5 w-3.5" />;

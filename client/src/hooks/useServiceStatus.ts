@@ -4,7 +4,7 @@ import type { ServiceHealth, ServiceState } from "../types";
 
 const PROBE_TIMEOUT_MS = 20_000;   // a sleeping Space can hold the first request open for a while
 const RETRY_INTERVAL_MS = 3_000;
-const GIVE_UP_AFTER_MS = 120_000;  // free Spaces usually wake in under a minute
+const GIVE_UP_AFTER_MS = 180_000;  // a cold free-tier Space can take a couple of minutes to wake
 
 /**
  * useServiceStatus — probes the backend's /health until it answers, and
