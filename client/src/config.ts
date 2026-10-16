@@ -43,6 +43,14 @@ function recognitionMode(): "device" | "server" {
 }
 export const RECOGNITION_MODE = recognitionMode();
 
+/**
+ * Dev-only stroke recorder (?record=1): shows a target character, captures
+ * what is drawn and exports labelled JSON for the real-strokes evaluation.
+ * ?record=1&per=5 sets how many samples of each class to collect.
+ */
+export const RECORD_MODE = queryParam("record") === "1";
+export const RECORD_SAMPLES_PER_CLASS = Math.max(1, Math.min(50, Number(queryParam("per")) || 5));
+
 /** Drawing surface size in canvas pixels (matches the MediaPipe camera frame). */
 export const CANVAS_WIDTH = 640;
 export const CANVAS_HEIGHT = 480;

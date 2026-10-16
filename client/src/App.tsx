@@ -9,6 +9,7 @@ import TypesetLine from "./components/TypesetLine";
 import LastCharacterCard from "./components/LastCharacterCard";
 import SuggestionsPanel from "./components/SuggestionsPanel";
 import SampleRow from "./components/SampleRow";
+import RecorderPanel from "./components/RecorderPanel";
 import ShortcutsPanel from "./components/ShortcutsPanel";
 import useHandTracking from "./hooks/useHandTracking";
 import useCanvas from "./hooks/useCanvas";
@@ -19,9 +20,10 @@ import useSuggestions from "./hooks/useSuggestions";
 import useServiceStatus from "./hooks/useServiceStatus";
 import useLocalRecognizer from "./hooks/useLocalRecognizer";
 import useSampleReplay from "./hooks/useSampleReplay";
+import useRecorder from "./hooks/useRecorder";
 import { isDrawingGesture } from "./utils/drawing";
 import { downloadTextFile } from "./utils/export";
-import { CANVAS_WIDTH, CANVAS_HEIGHT, RECOGNITION_MODE } from "./config";
+import { CANVAS_WIDTH, CANVAS_HEIGHT, RECOGNITION_MODE, RECORD_MODE } from "./config";
 import { useMotion, DUR } from "./motion";
 
 export default function App() {
@@ -56,6 +58,7 @@ export default function App() {
     clearCanvas,
     getSnapshot,
     getSnapshotPixels,
+    getStrokes,
     exportCanvasPNG,
     undo,
     redo,
@@ -77,6 +80,24 @@ export default function App() {
   );
   const wb = useWordBuilder(getSnapshot, clearCanvas, localRecognition);
   const sg = useSuggestions();
+
+  // ── Dev-only recorder (?record=1): strokes are labelled and kept, not recognised ──
+  const recorder = useRecorder({ getStrokes, getSnapshot, clearCanvas });
+  const recording = RECORD_MODE && mode === "writing";
+  useEffect(() => {
+    if (!recording) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        recorder.skip();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [recording, recorder.skip]);
+  // The word builder only hears about strokes when they are meant to be recognised.
+  const onStroke = recording ? undefined : wb.onStroke;
+  const onDrawingStop = recording ? undefined : wb.onDrawingStop;
 
   // ── Correction follows the service: retry what is owed once it is back ──
   const { correctionStatus, retryCorrection } = wb;
@@ -148,7 +169,7 @@ export default function App() {
       if (drawing) {
         setDrawing(false);
         const strokeResult = resetPrev();
-        if (mode === "writing" && strokeResult.accepted) wb.onDrawingStop();
+        if (mode === "writing" && strokeResult.accepted) onDrawingStop?.();
       }
       resetGesture();
       return;
@@ -160,15 +181,15 @@ export default function App() {
       setDrawing(true);
       const tip = landmarks[8];
       drawSegment(tip.x * CANVAS_WIDTH, tip.y * CANVAS_HEIGHT);
-      if (mode === "writing") wb.onStroke();
+      if (mode === "writing") onStroke?.();
     } else {
       if (drawing) {
         const strokeResult = finishStroke();
-        if (mode === "writing" && strokeResult.accepted) wb.onDrawingStop();
+        if (mode === "writing" && strokeResult.accepted) onDrawingStop?.();
       }
       setDrawing(false);
     }
-  }, [cameraOn, landmarks, drawing, mode, drawSegment, finishStroke, resetPrev, processGesture, resetGesture, gestureCallbacks, wb]);
+  }, [cameraOn, landmarks, drawing, mode, drawSegment, finishStroke, resetPrev, processGesture, resetGesture, gestureCallbacks, onStroke, onDrawingStop]);
 
   // ── Pointer input ───────────────────────────────────────────────────
   const handlePointerDrawStart = useCallback(
@@ -176,26 +197,26 @@ export default function App() {
       if (replay.isPlaying) return;
       setDrawing(true);
       drawSegment(x, y);
-      if (mode === "writing") wb.onStroke();
+      if (mode === "writing") onStroke?.();
     },
-    [drawSegment, mode, wb, replay.isPlaying],
+    [drawSegment, mode, onStroke, replay.isPlaying],
   );
 
   const handlePointerDrawMove = useCallback(
     ({ x, y }: Point) => {
       if (replay.isPlaying) return;
       drawSegment(x, y);
-      if (mode === "writing") wb.onStroke();
+      if (mode === "writing") onStroke?.();
     },
-    [drawSegment, mode, wb, replay.isPlaying],
+    [drawSegment, mode, onStroke, replay.isPlaying],
   );
 
   const handlePointerDrawEnd = useCallback(() => {
     if (replay.isPlaying) return;
     const strokeResult = finishStroke();
     setDrawing(false);
-    if (mode === "writing" && strokeResult.accepted) wb.onDrawingStop();
-  }, [finishStroke, mode, wb, replay.isPlaying]);
+    if (mode === "writing" && strokeResult.accepted) onDrawingStop?.();
+  }, [finishStroke, mode, onDrawingStop, replay.isPlaying]);
 
   // ── Export + shortcuts ──────────────────────────────────────────────
   const handleExportText = useCallback(() => {
@@ -210,19 +231,19 @@ export default function App() {
     redo,
     clearCanvas,
     exportCanvasPNG,
-    addSpace: wb.addSpace,
-    undoLastChar: wb.undoLastChar,
-    clearCurrentChar: wb.clearCurrentChar,
-    clearAll: wb.clearAll,
-    exportText: handleExportText,
-    recognizeNow: wb.recognizeNow,
+    addSpace: recording ? () => {} : wb.addSpace,
+    undoLastChar: recording ? undo : wb.undoLastChar,
+    clearCurrentChar: recording ? clearCanvas : wb.clearCurrentChar,
+    clearAll: recording ? clearCanvas : wb.clearAll,
+    exportText: recording ? recorder.exportJson : handleExportText,
+    recognizeNow: recording ? recorder.saveAndNext : wb.recognizeNow,
     setStrokeColor,
     showShortcuts,
     setShowShortcuts,
   });
 
   const writing = mode === "writing";
-  const hasSideContent = writing && (wb.lastResult !== null || sg.suggestions.length > 0 || sg.nextWords.length > 0 || sg.autocomplete !== null);
+  const hasSideContent = writing && !recording && (wb.lastResult !== null || sg.suggestions.length > 0 || sg.nextWords.length > 0 || sg.autocomplete !== null);
 
   return (
     <div className="relative flex h-full flex-col bg-desk-0 text-text-0">
@@ -305,7 +326,26 @@ export default function App() {
             />
           </motion.div>
 
-          {writing && (
+          {recording && (
+            <RecorderPanel
+              target={recorder.target}
+              cursor={recorder.cursor}
+              total={recorder.total}
+              savedCount={recorder.savedCount}
+              countForTarget={recorder.countForTarget}
+              perClass={recorder.perClass}
+              lastSaved={recorder.lastSaved}
+              busy={recorder.busy}
+              hasStrokes={hasStrokes}
+              onSave={recorder.saveAndNext}
+              onSkip={recorder.skip}
+              onUndo={recorder.undoLast}
+              onReset={recorder.reset}
+              onExport={recorder.exportJson}
+            />
+          )}
+
+          {writing && !recording && (
             <TypesetLine
               word={wb.word}
               wordString={wb.wordString}
@@ -324,7 +364,7 @@ export default function App() {
             />
           )}
 
-          <SampleRow onReplay={handleReplay} onStopReplay={replay.stop} isReplaying={replay.isPlaying} trackingError={tracking.error} />
+          {!recording && <SampleRow onReplay={handleReplay} onStopReplay={replay.stop} isReplaying={replay.isPlaying} trackingError={tracking.error} />}
         </div>
 
         {/* Right column: collapses to nothing until there is content */}

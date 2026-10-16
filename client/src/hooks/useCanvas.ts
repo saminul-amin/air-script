@@ -252,6 +252,11 @@ export default function useCanvas() {
     return strokesToImageBlob(forRecognition(undoStack.current), canvas.width, canvas.height, true);
   }, []);
 
+  /** A copy of the strokes currently on the canvas (for the dev recorder). */
+  const getStrokes = useCallback((): Stroke[] => {
+    return undoStack.current.map((s) => ({ ...s, points: s.points.map((p) => ({ ...p })), widths: s.widths ? [...s.widths] : undefined }));
+  }, []);
+
   /** The same snapshot as raw RGBA pixels, for on-device recognition. */
   const getSnapshotPixels = useCallback((): ImageData | null => {
     const canvas = canvasRef.current;
@@ -285,6 +290,7 @@ export default function useCanvas() {
     clearCanvas,
     getSnapshot,
     getSnapshotPixels,
+    getStrokes,
     exportCanvasPNG,
     undo,
     redo,

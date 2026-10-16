@@ -102,3 +102,17 @@ Implementation notes: a single `useReducedMotion()` from Framer Motion plus a
 `@media (prefers-reduced-motion: reduce)` block in `index.css` that zeroes CSS
 transitions; every `motion.*` gets its `transition` from one shared
 `motionPresets.ts` so durations stay in range.
+
+## v2 additions (October 2026): on-device recognition, within the same system
+
+Recognition moved into the browser (ONNX Runtime Web). Nothing about the
+palette, type or layout changed; these are the new elements and how they
+use the existing rules.
+
+| Element | Treatment | Reduced motion |
+|---|---|---|
+| Recognition indicator (top bar) | A second status dot next to the service dot, same 2 px dot + 12 px label: "On your device" (ok), "Loading model" (warn, pulses), "Via server" (warn). The service dot is relabelled "Correction" while recognition is local. | No pulse. |
+| Model download | A small badge in the paper's bottom-right corner, same style as the replay badge, "Loading the recognition model — draw meanwhile". Drawing is never blocked. Enters with the shared `rise` preset. | Fade only. |
+| Connection strip | Only exists for *waking* and *offline* when recognition is local, and says what still works (characters appear; raw text until correction returns). | Unchanged. |
+| Uncorrected text | One 11 px grey line under the raw strip: "Raw text — the correction service is unreachable. It will be corrected when the service is back." Removed on the same `fade` the moment correction applies. | Fade only. |
+| Recorder (`?record=1`, dev only) | Replaces the typeset line: the target glyph set in Fraunces at the typeset size in the accent colour, progress in mono, the usual quiet control row. The glyph swaps with the character-resolve motion. | Instant swap. |
