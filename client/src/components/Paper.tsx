@@ -22,6 +22,8 @@ interface PaperProps {
   replayProgress: { index: number; total: number; char: string } | null;
   filterReason: string | null;
   isEmpty: boolean;
+  /** Shown quietly in a corner while the on-device model downloads. */
+  modelLoading: boolean;
 }
 
 const FILTER_TEXT: Record<string, string> = {
@@ -87,6 +89,20 @@ export default function Paper(p: PaperProps) {
             <span className="font-mono text-text-1">
               {p.replayProgress.char} · {p.replayProgress.index + 1}/{p.replayProgress.total}
             </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* On-device model download, never blocks drawing */}
+      <AnimatePresence>
+        {p.modelLoading && (
+          <motion.div
+            {...rise(6, DUR.base)}
+            role="status"
+            className="absolute bottom-3 right-3 flex items-center gap-2 rounded-lg bg-desk-0/85 px-2.5 py-1.5 text-[11px] text-text-1 shadow-lg backdrop-blur"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-warn dot-pulse" />
+            Loading the recognition model — draw meanwhile
           </motion.div>
         )}
       </AnimatePresence>

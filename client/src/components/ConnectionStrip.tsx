@@ -8,22 +8,37 @@ interface ConnectionStripProps {
   state: ServiceState;
   health: ServiceHealth | null;
   elapsedMs: number;
+  /** True when characters are recognised in the browser, so the server only matters for correction. */
+  onDevice: boolean;
   onRetry: () => void;
 }
 
 /**
  * One-line strip between the top bar and the paper. Exists only while the
- * backend is waking, degraded or offline — and says so honestly.
+ * backend is waking, degraded or offline — and says honestly what still works.
  */
-export default function ConnectionStrip({ state, health, elapsedMs, onRetry }: ConnectionStripProps) {
+export default function ConnectionStrip({ state, health, elapsedMs, onDevice, onRetry }: ConnectionStripProps) {
   const { reduce, t } = useMotion();
   const seconds = Math.round(elapsedMs / 1000);
 
   let icon = <Loader2 className={`h-3.5 w-3.5 ${reduce ? "" : "animate-spin"}`} />;
-  let text = "Connecting to the recognition service.";
+  let text = onDevice ? "Checking the text correction service." : "Connecting to the recognition service.";
   let tone = "text-text-1";
+  let visible = state !== "ready";
 
-  if (state === "waking") {
+  if (onDevice) {
+    // Recognition is local; the strip only talks about correction.
+    if (state === "checking" || state === "degraded") visible = false;
+    if (state === "waking") {
+      text = BACKEND_MAY_SLEEP
+        ? `Waking the correction service — it sleeps when idle and can take a couple of minutes (${seconds}s so far). Characters are recognised on your device; the text is corrected once it answers.`
+        : `Correction service not answering yet, retrying (${seconds}s). Recognition still runs on your device.`;
+    } else if (state === "offline") {
+      icon = <CloudOff className="h-3.5 w-3.5" />;
+      text = "Correction service unreachable. Characters are still recognised on your device; raw text is shown and will be corrected when the service is back.";
+      tone = "text-warn";
+    }
+  } else if (state === "waking") {
     text = BACKEND_MAY_SLEEP
       ? `Waking the recognition service. The free tier sleeps when idle and can take a couple of minutes — ${seconds}s so far. You can draw meanwhile.`
       : `Recognition service not answering yet, retrying (${seconds}s). Check that the AI service and gateway are running.`;
@@ -39,7 +54,7 @@ export default function ConnectionStrip({ state, health, elapsedMs, onRetry }: C
 
   return (
     <AnimatePresence initial={false}>
-      {state !== "ready" && (
+      {visible && (
         <motion.div
           role="status"
           aria-live="polite"

@@ -137,6 +137,23 @@ export type TrackingState = "off" | "starting" | "ready" | "error";
 /** Backend reachability, including the cold-start of a sleeping free-tier service. */
 export type ServiceState = "checking" | "waking" | "ready" | "degraded" | "offline";
 
+/** Lifecycle of on-device (ONNX Runtime Web) recognition. */
+export type LocalRecognitionStatus = "off" | "loading" | "ready" | "failed";
+
+/** Where the last character was recognised. */
+export type RecognitionSource = "device" | "server";
+
+/**
+ * Where the server-side correction of the current text stands.
+ *   idle        – nothing to correct
+ *   scheduled   – waiting for the idle delay / word boundary
+ *   running     – request in flight
+ *   applied     – corrected text shown
+ *   unavailable – service unreachable; raw text shown, retried when it is back
+ *   failed      – service answered with an error; raw text shown
+ */
+export type CorrectionStatus = "idle" | "scheduled" | "running" | "applied" | "unavailable" | "failed";
+
 export interface ServiceHealth {
   reachable: boolean;
   modelLoaded: boolean;

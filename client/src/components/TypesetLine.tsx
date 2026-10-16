@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, FileDown, PenLine, RotateCcw } from "lucide-react";
-import type { RecognizedChar } from "../types";
+import type { CorrectionStatus, RecognizedChar } from "../types";
 import { useMotion, DUR } from "../motion";
 
 interface TypesetLineProps {
@@ -12,6 +12,7 @@ interface TypesetLineProps {
   showCorrected: boolean;
   isProcessing: boolean;
   isRecognizing: boolean;
+  correctionStatus: CorrectionStatus;
   error: string | null;
   userEditedText: string | null;
   onToggleCorrected: () => void;
@@ -81,6 +82,16 @@ export default function TypesetLine(p: TypesetLineProps) {
   };
 
   const ctl = "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-text-2 transition-ui hover:bg-desk-2 hover:text-text-0";
+
+  // Say plainly when the text on screen is uncorrected and why.
+  const correctionNote =
+    !hasContent || isEdited
+      ? null
+      : p.correctionStatus === "unavailable"
+        ? "Raw text — the correction service is unreachable. It will be corrected when the service is back."
+        : p.correctionStatus === "failed"
+          ? "Raw text — the correction service returned an error."
+          : null;
 
   return (
     <section aria-label="Recognised text" className="flex min-h-[7.5rem] flex-col gap-2">
@@ -159,8 +170,21 @@ export default function TypesetLine(p: TypesetLineProps) {
       </div>
 
       <AnimatePresence>
+        {correctionNote && (
+          <motion.p
+            key="correction-note"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={t(DUR.fast)}
+            role="status"
+            className="text-[11px] text-text-2"
+          >
+            {correctionNote}
+          </motion.p>
+        )}
         {p.error && (
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={t(DUR.fast)} role="alert" className="text-xs text-danger">
+          <motion.p key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={t(DUR.fast)} role="alert" className="text-xs text-danger">
             {p.error}
           </motion.p>
         )}

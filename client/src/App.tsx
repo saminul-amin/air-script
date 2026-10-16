@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { AppMode, InputSource, Point, Sample } from "./types";
 import TopBar from "./components/TopBar";
@@ -17,10 +17,11 @@ import useGestures from "./hooks/useGestures";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import useSuggestions from "./hooks/useSuggestions";
 import useServiceStatus from "./hooks/useServiceStatus";
+import useLocalRecognizer from "./hooks/useLocalRecognizer";
 import useSampleReplay from "./hooks/useSampleReplay";
 import { isDrawingGesture } from "./utils/drawing";
 import { downloadTextFile } from "./utils/export";
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./config";
+import { CANVAS_WIDTH, CANVAS_HEIGHT, RECOGNITION_MODE } from "./config";
 import { useMotion, DUR } from "./motion";
 
 export default function App() {
@@ -43,6 +44,9 @@ export default function App() {
 
   const service = useServiceStatus();
 
+  // ── On-device recognition: loads after first paint, falls back to the server ──
+  const local = useLocalRecognizer(RECOGNITION_MODE === "device");
+
   const canvas = useCanvas();
   const {
     canvasRef,
@@ -51,6 +55,7 @@ export default function App() {
     resetPrev,
     clearCanvas,
     getSnapshot,
+    getSnapshotPixels,
     exportCanvasPNG,
     undo,
     redo,
@@ -66,8 +71,24 @@ export default function App() {
 
   const [drawing, setDrawing] = useState(false);
   const { gesture, processGesture, resetGesture } = useGestures();
-  const wb = useWordBuilder(getSnapshot, clearCanvas);
+  const localRecognition = useMemo(
+    () => (local.status === "off" ? undefined : { getSnapshotPixels, recognize: local.recognize }),
+    [local.status, local.recognize, getSnapshotPixels],
+  );
+  const wb = useWordBuilder(getSnapshot, clearCanvas, localRecognition);
   const sg = useSuggestions();
+
+  // ── Correction follows the service: retry what is owed once it is back ──
+  const { correctionStatus, retryCorrection } = wb;
+  const serviceRetry = service.retry;
+  useEffect(() => {
+    if (correctionStatus === "unavailable" && service.state === "ready") retryCorrection();
+  }, [correctionStatus, service.state, retryCorrection]);
+  useEffect(() => {
+    // A correction just failed to reach a service we believed was up: re-probe.
+    if (correctionStatus === "unavailable" && (service.state === "ready" || service.state === "degraded")) serviceRetry();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [correctionStatus]);
 
   // ── Sample replay (demonstrates the pipeline with no input at all) ──
   const busyRef = useRef(false);
@@ -215,6 +236,7 @@ export default function App() {
         onInputSourceChange={setInputSource}
         trackingStatus={tracking.status}
         inputLocked={replay.isPlaying}
+        recognitionStatus={local.status}
         serviceState={service.state}
         showWebcam={showWebcam}
         onWebcamToggle={() => setShowWebcam((v) => !v)}
@@ -222,7 +244,13 @@ export default function App() {
         onShortcutsToggle={() => setShowShortcuts((v) => !v)}
       />
 
-      <ConnectionStrip state={service.state} health={service.health} elapsedMs={service.elapsedMs} onRetry={service.retry} />
+      <ConnectionStrip
+        state={service.state}
+        health={service.health}
+        elapsedMs={service.elapsedMs}
+        onDevice={local.status === "ready" || local.status === "loading"}
+        onRetry={service.retry}
+      />
 
       <AnimatePresence>{showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} />}</AnimatePresence>
 
@@ -273,6 +301,7 @@ export default function App() {
               replayProgress={replay.progress}
               filterReason={lastFilterReason}
               isEmpty={!hasStrokes && wb.word.length === 0}
+              modelLoading={local.status === "loading"}
             />
           </motion.div>
 
@@ -285,6 +314,7 @@ export default function App() {
               showCorrected={wb.showCorrected}
               isProcessing={wb.isProcessing}
               isRecognizing={wb.isRecognizing}
+              correctionStatus={wb.correctionStatus}
               error={wb.error}
               userEditedText={wb.userEditedText}
               onToggleCorrected={wb.toggleCorrected}

@@ -1,7 +1,7 @@
 import { Camera, CameraOff, Keyboard } from "lucide-react";
 import ModeToggle from "./ModeToggle";
 import InputSourceSwitch from "./InputSourceSwitch";
-import type { AppMode, InputSource, ServiceState, TrackingState } from "../types";
+import type { AppMode, InputSource, LocalRecognitionStatus, ServiceState, TrackingState } from "../types";
 
 interface TopBarProps {
   mode: AppMode;
@@ -10,6 +10,7 @@ interface TopBarProps {
   onInputSourceChange: (source: InputSource) => void;
   trackingStatus: TrackingState;
   inputLocked: boolean;
+  recognitionStatus: LocalRecognitionStatus;
   serviceState: ServiceState;
   showWebcam: boolean;
   onWebcamToggle: () => void;
@@ -17,13 +18,57 @@ interface TopBarProps {
   onShortcutsToggle: () => void;
 }
 
-const SERVICE: Record<ServiceState, { label: string; cls: string }> = {
-  checking: { label: "Connecting", cls: "bg-warn dot-pulse" },
-  waking: { label: "Waking service", cls: "bg-warn dot-pulse" },
-  ready: { label: "Model ready", cls: "bg-ok" },
-  degraded: { label: "No model", cls: "bg-danger" },
-  offline: { label: "Offline", cls: "bg-danger" },
-};
+interface Dot {
+  label: string;
+  cls: string;
+  title: string;
+}
+
+/** The quiet on-device indicator. */
+function recognitionDot(status: LocalRecognitionStatus): Dot {
+  switch (status) {
+    case "loading":
+      return { label: "Loading model", cls: "bg-warn dot-pulse", title: "Downloading the recognition model to your browser. You can draw meanwhile." };
+    case "ready":
+      return { label: "On your device", cls: "bg-ok", title: "Characters are recognised in your browser with ONNX Runtime Web. Strokes never leave the page." };
+    case "failed":
+      return { label: "Via server", cls: "bg-warn", title: "On-device recognition could not start in this browser; characters are sent to the server instead." };
+    case "off":
+    default:
+      return { label: "Via server", cls: "bg-text-2", title: "On-device recognition is switched off; characters are sent to the server." };
+  }
+}
+
+/** Server status, read as the correction service when recognition is local. */
+function serviceDot(state: ServiceState, onDevice: boolean): Dot {
+  if (onDevice) {
+    switch (state) {
+      case "checking":
+        return { label: "Connecting", cls: "bg-warn dot-pulse", title: "Checking the text correction service." };
+      case "waking":
+        return { label: "Waking", cls: "bg-warn dot-pulse", title: "The correction service is waking up. Raw text is shown until it answers." };
+      case "ready":
+      case "degraded":
+        return { label: "Online", cls: "bg-ok", title: "Text correction and suggestions are available." };
+      case "offline":
+      default:
+        return { label: "Offline", cls: "bg-danger", title: "The correction service is unreachable. Recognition still works; raw text is shown." };
+    }
+  }
+  switch (state) {
+    case "checking":
+      return { label: "Connecting", cls: "bg-warn dot-pulse", title: "Connecting to the recognition service." };
+    case "waking":
+      return { label: "Waking", cls: "bg-warn dot-pulse", title: "The service is waking up." };
+    case "ready":
+      return { label: "Online", cls: "bg-ok", title: "The recognition service is ready." };
+    case "degraded":
+      return { label: "No model", cls: "bg-danger", title: "The service is up but has no trained model." };
+    case "offline":
+    default:
+      return { label: "Offline", cls: "bg-danger", title: "The recognition service is unreachable." };
+  }
+}
 
 export default function TopBar({
   mode,
@@ -32,13 +77,16 @@ export default function TopBar({
   onInputSourceChange,
   trackingStatus,
   inputLocked,
+  recognitionStatus,
   serviceState,
   showWebcam,
   onWebcamToggle,
   showShortcuts,
   onShortcutsToggle,
 }: TopBarProps) {
-  const service = SERVICE[serviceState];
+  const onDevice = recognitionStatus === "ready" || recognitionStatus === "loading";
+  const recognition = recognitionDot(recognitionStatus);
+  const service = serviceDot(serviceState, onDevice);
   const cameraOn = inputSource === "camera";
 
   return (
@@ -64,10 +112,22 @@ export default function TopBar({
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2" title="Recognition service status">
-          <span className={`h-2 w-2 rounded-full ${service.cls}`} />
-          <span className="text-xs text-text-1">{service.label}</span>
-        </div>
+        <dl className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-2" title={recognition.title}>
+            <dt className="hidden text-text-2 sm:inline">Recognition</dt>
+            <dd className="flex items-center gap-1.5 text-text-1">
+              <span className={`h-2 w-2 rounded-full ${recognition.cls}`} />
+              {recognition.label}
+            </dd>
+          </div>
+          <div className="flex items-center gap-2" title={service.title}>
+            <dt className="hidden text-text-2 sm:inline">{onDevice ? "Correction" : "Service"}</dt>
+            <dd className="flex items-center gap-1.5 text-text-1">
+              <span className={`h-2 w-2 rounded-full ${service.cls}`} />
+              {service.label}
+            </dd>
+          </div>
+        </dl>
         <button
           onClick={onShortcutsToggle}
           aria-pressed={showShortcuts}

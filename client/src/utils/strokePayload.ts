@@ -69,24 +69,42 @@ export function forRecognition(strokes: Stroke[]): Stroke[] {
 }
 
 /**
- * Render strokes to the PNG the CNN receives. The live canvas is mirrored with
+ * Paint strokes on a fresh off-screen canvas. The live canvas is mirrored with
  * CSS, so the snapshot is flipped back to what the user actually sees.
  */
+function paintOffscreen(strokes: Stroke[], width: number, height: number, mirrored: boolean): CanvasRenderingContext2D | null {
+  const offscreen = document.createElement("canvas");
+  offscreen.width = width;
+  offscreen.height = height;
+  const ctx = offscreen.getContext("2d");
+  if (!ctx) return null;
+  if (mirrored) {
+    ctx.translate(width, 0);
+    ctx.scale(-1, 1);
+  }
+  paintStrokes(ctx, strokes);
+  return ctx;
+}
+
+/** Render strokes to the PNG the server's CNN receives (the fallback path). */
 export function strokesToImageBlob(
   strokes: Stroke[],
   width: number,
   height: number,
   mirrored: boolean = true,
 ): Promise<Blob | null> {
-  const offscreen = document.createElement("canvas");
-  offscreen.width = width;
-  offscreen.height = height;
-  const ctx = offscreen.getContext("2d");
+  const ctx = paintOffscreen(strokes, width, height, mirrored);
   if (!ctx) return Promise.resolve(null);
-  if (mirrored) {
-    ctx.translate(width, 0);
-    ctx.scale(-1, 1);
-  }
-  paintStrokes(ctx, strokes);
-  return new Promise((resolve) => offscreen.toBlob((blob) => resolve(blob), "image/png"));
+  return new Promise((resolve) => ctx.canvas.toBlob((blob) => resolve(blob), "image/png"));
+}
+
+/**
+ * Render strokes to raw RGBA pixels for on-device recognition. These are the
+ * same bytes a PNG of the canvas would decode to, so the TypeScript
+ * preprocessing sees exactly what the Python service would have.
+ */
+export function strokesToImageData(strokes: Stroke[], width: number, height: number, mirrored: boolean = true): ImageData | null {
+  const ctx = paintOffscreen(strokes, width, height, mirrored);
+  if (!ctx) return null;
+  return ctx.getImageData(0, 0, width, height);
 }

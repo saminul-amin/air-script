@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * The ONNX files the browser downloads from public/models must be the exact
+ * The ONNX files the browser downloads from client/models must be the exact
  * exports committed in ai-service/saved_model (pinned by their .sha256 files).
  * Re-copy after re-running export_onnx.py; this test fails if the two drift.
  */
@@ -10,12 +10,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const CLIENT_MODELS = path.resolve(__dirname, "../public/models");
+const CLIENT_MODELS = path.resolve(__dirname, "../models");
 const SERVICE_MODELS = path.resolve(__dirname, "../../ai-service/saved_model");
 
 const models = fs.readdirSync(CLIENT_MODELS).filter((f) => f.endsWith(".onnx")).sort();
 
-describe("public/models mirrors ai-service/saved_model", () => {
+describe("client/models mirrors ai-service/saved_model", () => {
   it("ships at least one ONNX model", () => {
     expect(models.length).toBeGreaterThan(0);
   });

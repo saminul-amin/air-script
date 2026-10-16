@@ -5,17 +5,21 @@ import type { ServiceHealth, ServiceState } from "../types";
 const PROBE_TIMEOUT_MS = 20_000;   // a sleeping Space can hold the first request open for a while
 const RETRY_INTERVAL_MS = 3_000;
 const GIVE_UP_AFTER_MS = 180_000;  // a cold free-tier Space can take a couple of minutes to wake
+const RESUME_PROBE_MS = 30_000;    // after giving up, keep checking quietly so correction can resume
 
 /**
  * useServiceStatus — probes the backend's /health until it answers, and
  * distinguishes "waking a sleeping free-tier service" from "actually offline".
+ * Recognition no longer depends on it (it runs on the device); the state
+ * drives the correction pipeline and the server-side recognition fallback.
  *
  * States:
  *   checking  – first probe in flight
  *   waking    – probe failed or timed out; retrying (cold start in progress)
  *   ready     – reachable and real model weights are loaded
- *   degraded  – reachable but the model is not loaded (server-side problem)
- *   offline   – gave up after GIVE_UP_AFTER_MS
+ *   degraded  – reachable but the model is not loaded (text endpoints still work)
+ *   offline   – gave up after GIVE_UP_AFTER_MS; a slow background probe keeps
+ *               running so the state flips back to ready on its own
  */
 export default function useServiceStatus() {
   const [state, setState] = useState<ServiceState>("checking");
@@ -33,11 +37,12 @@ export default function useServiceStatus() {
     setHealth(null);
 
     let stopped = false;
+    let gaveUp = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let controller: AbortController | null = null;
 
     const tick = setInterval(() => {
-      if (!stopped) setElapsedMs(performance.now() - startedAt.current);
+      if (!stopped && !gaveUp) setElapsedMs(performance.now() - startedAt.current);
     }, 500);
 
     const probe = async () => {
@@ -53,9 +58,11 @@ export default function useServiceStatus() {
       } catch {
         if (stopped || generation.current !== myGen) return;
         const elapsed = performance.now() - startedAt.current;
-        if (elapsed >= GIVE_UP_AFTER_MS) {
+        if (gaveUp || elapsed >= GIVE_UP_AFTER_MS) {
+          gaveUp = true;
           setState("offline");
           clearInterval(tick);
+          timer = setTimeout(probe, RESUME_PROBE_MS);
         } else {
           setState("waking");
           setAttempt((n) => n + 1);
@@ -78,7 +85,7 @@ export default function useServiceStatus() {
 
   useEffect(() => run(), [run]);
 
-  /** Start the probe loop again (after "offline"). */
+  /** Start the probe loop again (after "offline", or when a request just failed). */
   const retry = useCallback(() => {
     setAttempt(0);
     run();

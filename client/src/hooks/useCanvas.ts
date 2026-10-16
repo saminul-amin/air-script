@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { smoothCoordinate } from "../utils/drawing";
 import { validateStroke, shouldAttachDot } from "../utils/strokeValidator";
-import { paintStrokes, strokesToImageBlob, forRecognition } from "../utils/strokePayload";
+import { paintStrokes, strokesToImageBlob, strokesToImageData, forRecognition } from "../utils/strokePayload";
 import type { Point, Stroke, StrokeStyle, StrokeResult, BBox } from "../types";
 
 export const DEFAULT_COLOR = "#1c1f27"; // --ink
@@ -252,6 +252,13 @@ export default function useCanvas() {
     return strokesToImageBlob(forRecognition(undoStack.current), canvas.width, canvas.height, true);
   }, []);
 
+  /** The same snapshot as raw RGBA pixels, for on-device recognition. */
+  const getSnapshotPixels = useCallback((): ImageData | null => {
+    const canvas = canvasRef.current;
+    if (!canvas || undoStack.current.length === 0) return null;
+    return strokesToImageData(forRecognition(undoStack.current), canvas.width, canvas.height, true);
+  }, []);
+
   /** Export the canvas as a downloadable PNG (un-mirrored, original) */
   const exportCanvasPNG = useCallback(() => {
     const canvas = canvasRef.current;
@@ -277,6 +284,7 @@ export default function useCanvas() {
     resetPrev,
     clearCanvas,
     getSnapshot,
+    getSnapshotPixels,
     exportCanvasPNG,
     undo,
     redo,

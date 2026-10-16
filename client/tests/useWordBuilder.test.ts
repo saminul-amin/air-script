@@ -4,6 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../src/utils/api", () => ({
   recognizeCharacter: vi.fn(),
   processText: vi.fn(),
+  ApiError: class ApiError extends Error {
+    status: number;
+    constructor(status: number, message: string) {
+      super(message);
+      this.status = status;
+    }
+  },
 }));
 
 import { recognizeCharacter, processText } from "../src/utils/api";

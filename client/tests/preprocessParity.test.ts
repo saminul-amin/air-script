@@ -25,7 +25,7 @@ import { classify } from "../src/recognition/classify";
 import { EMNIST_LABELS } from "../src/recognition/labels";
 
 const FIXTURE_DIR = path.resolve(__dirname, "fixtures/preprocessing");
-const MODEL_DIR = path.resolve(__dirname, "../public/models");
+const MODEL_DIR = path.resolve(__dirname, "../models");
 const MIN_FIXTURES = 50;
 const MAX_ABS_DIFF = 1 / 255 + 1e-7;
 
@@ -118,7 +118,7 @@ describe("ONNX top-1 from the TypeScript input equals the Python input's", () =>
     for (const m of models) sessions.set(m, await ort.InferenceSession.create(path.join(MODEL_DIR, m)));
   });
 
-  it("has at least one model under public/models", () => {
+  it("has at least one model under client/models", () => {
     expect(models.length).toBeGreaterThan(0);
   });
 
