@@ -24,4 +24,5 @@ Thumbs.db
 
 # Data / model artifacts (keep saved_model/ tracked if needed)
 *.h5
-*.onnx
+# ONNX exports are committed next to their .sha256 (see export_onnx.py)
+!*.onnx

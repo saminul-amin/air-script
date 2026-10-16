@@ -47,3 +47,6 @@ server/services/
 
 # Commit plan (internal working file)
 COMMIT_PLAN.md
+
+# Working brief for the v2 session (notes to the author, not part of the project)
+airscript-v2-prompt.md

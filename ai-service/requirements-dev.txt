@@ -2,3 +2,5 @@
 -r requirements.txt
 pytest>=8.0
 httpx>=0.27
+# tests/test_onnx_export.py runs the committed ONNX file against PyTorch.
+onnxruntime>=1.20
