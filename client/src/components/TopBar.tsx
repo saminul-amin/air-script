@@ -99,13 +99,13 @@ export default function TopBar({
   const cameraOn = inputSource === "camera";
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-4 border-b border-line px-5">
-      <div className="flex items-baseline gap-2">
+    <header className="flex h-14 shrink-0 items-center gap-3 overflow-x-auto border-b border-line px-5 thin-scrollbar md:gap-4">
+      <div className="flex shrink-0 items-baseline gap-2">
         <span className="font-display text-[22px] font-medium tracking-tight text-text-0">AirScript</span>
-        <span className="hidden text-[11px] text-text-2 md:inline">air writing, on paper</span>
+        <span className="hidden whitespace-nowrap text-[11px] text-text-2 xl:inline">air writing, on paper</span>
       </div>
 
-      <div className="mx-auto flex items-center gap-3">
+      <div className="mx-auto flex shrink-0 items-center gap-3">
         <ModeToggle mode={mode} onToggle={onModeToggle} />
         {mode === "writing" && <LanguageSwitch value={language} disabled={inputLocked} onChange={onLanguageChange} />}
         <InputSourceSwitch value={inputSource} trackingStatus={trackingStatus} disabled={inputLocked} onChange={onInputSourceChange} />
@@ -121,19 +121,19 @@ export default function TopBar({
         )}
       </div>
 
-      <div className="flex items-center gap-4">
-        <dl className="flex items-center gap-4 text-xs">
+      <div className="flex shrink-0 items-center gap-4">
+        <dl className="flex items-center gap-4 whitespace-nowrap text-xs">
           <div className="flex items-center gap-2" title={recognition.title}>
-            <dt className="hidden text-text-2 sm:inline">Recognition</dt>
+            <dt className="hidden text-text-2 lg:inline">Recognition</dt>
             <dd className="flex items-center gap-1.5 text-text-1">
-              <span className={`h-2 w-2 rounded-full ${recognition.cls}`} />
+              <span className={`h-2 w-2 shrink-0 rounded-full ${recognition.cls}`} />
               {recognition.label}
             </dd>
           </div>
           <div className="flex items-center gap-2" title={service.title}>
-            <dt className="hidden text-text-2 sm:inline">{onDevice ? "Correction" : "Service"}</dt>
+            <dt className="hidden text-text-2 lg:inline">{onDevice ? "Correction" : "Service"}</dt>
             <dd className="flex items-center gap-1.5 text-text-1">
-              <span className={`h-2 w-2 rounded-full ${service.cls}`} />
+              <span className={`h-2 w-2 shrink-0 rounded-full ${service.cls}`} />
               {service.label}
             </dd>
           </div>
@@ -142,10 +142,10 @@ export default function TopBar({
           onClick={onHowItWorksToggle}
           aria-pressed={showHowItWorks}
           title="How it works: the pipeline and the measured accuracy"
-          className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs transition-ui ${showHowItWorks ? "bg-desk-2 text-text-0" : "text-text-2 hover:text-text-1"}`}
+          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-1.5 text-xs transition-ui ${showHowItWorks ? "bg-desk-2 text-text-0" : "text-text-2 hover:text-text-1"}`}
         >
-          <Info className="h-4 w-4" />
-          <span className="hidden md:inline">How it works</span>
+          <Info className="h-4 w-4 shrink-0" />
+          <span className="hidden xl:inline">How it works</span>
         </button>
         <button
           onClick={onShortcutsToggle}

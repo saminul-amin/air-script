@@ -54,7 +54,7 @@ the gateway is still the path exercised by the local setup and its tests.
 
 | Tier | URL | Notes |
 |------|-----|-------|
-| Frontend | https://airscript-frontend.vercel.app | Vercel. Deployed with the Vercel CLI, not from git: the live site is whatever was last pushed with `vercel --prod`. |
+| Frontend | https://airscript-frontend.vercel.app | Vercel. Deployed with the Vercel CLI, not from git: the live site is whatever was last pushed with `vercel --prod`. Last deployed 17 October 2026 with on-device recognition, Bengali and the How it works panel; the models and the ONNX Runtime WASM are served brotli-compressed from Vercel's CDN. |
 | AI service | https://saminul-amin-airscript-backend.hf.space | Hugging Face Space, free CPU tier. **Sleeps when idle**: the first request after a quiet period takes up to a minute. Recognition does not depend on it; correction waits for it and the app says so. A daily Vercel cron (`client/api/keep-warm.js`) pings `/health` so it idles less. `GET /health` reports whether trained weights are loaded. |
 
 ## Recognition on your device
