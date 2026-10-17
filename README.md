@@ -1,9 +1,10 @@
 # AirScript — touchless air writing and drawing
 
 Write or draw in the air with your hand, or with a mouse or finger, and watch a
-CNN plus an NLP pipeline turn the strokes into corrected text. Hand tracking
-(MediaPipe) and character recognition (ONNX Runtime Web) both run in the
-browser; only the recognised characters go to the server, for correction.
+CNN plus an NLP pipeline turn the strokes into corrected text, in English or
+in Bengali (বাংলা). Hand tracking (MediaPipe) and character recognition (ONNX
+Runtime Web) both run in the browser; only the recognised characters go to
+the server, for correction.
 
 **Try it:** [https://airscript-frontend.vercel.app](https://airscript-frontend.vercel.app)
 — no webcam needed. Draw with the mouse, or press *Replay a sample* and the app
@@ -17,7 +18,7 @@ flowchart TB
         direction LR
         IN["Mouse / touch / pen<br/>or webcam + MediaPipe Hands<br/>(on-device)"] --> CV["Canvas<br/>stroke collection & validation"]
         CV --> PRE["Preprocessing<br/>TypeScript port of the<br/>10-step Pillow pipeline<br/>(bit-exact, tested)"]
-        PRE --> ORT["ONNX Runtime Web (WASM)<br/>CharCNN, EMNIST Balanced, 47 classes<br/>int8 export, 1.7 MB"]
+        PRE --> ORT["ONNX Runtime Web (WASM)<br/>English: CharCNN, EMNIST Balanced, 47 classes<br/>Bengali: BengaliCNN, BanglaLekha-Isolated, 84 classes<br/>int8 exports, 1.7 MB each"]
     end
 
     GW["Express gateway — TypeScript<br/>proxy, upstream error surfacing,<br/>/api/health with model status"]
@@ -28,7 +29,8 @@ flowchart TB
         FB["Recognition fallback<br/>preprocessing.py + CharCNN (PyTorch)<br/>same weights, same pipeline"]
     end
 
-    ORT -- "characters + confidences<br/>REST /api/process-text, /suggest, /learn" --> GW
+    ORT -- "English: characters + confidences<br/>REST /api/process-text, /suggest, /learn" --> GW
+    ORT -- "Bengali: characters" --> BN["Composition on the device<br/>vowel after consonant → vowel sign<br/>(no server correction)"]
     CV -. "PNG, only if WASM is unavailable<br/>/api/predict-character" .-> GW
     GW --> COR
     GW -.-> FB
@@ -59,21 +61,25 @@ the gateway is still the path exercised by the local setup and its tests.
 
 The browser loads three things after first paint, without blocking drawing:
 the ONNX Runtime Web JS bundle (73 KB), its WebAssembly binary (14.2 MB raw,
-3.7 MB gzip, 2.3 MB brotli, cached after the first visit), and the model.
-Two exports of the same weights are committed, both hashed into the build:
+3.7 MB gzip, 2.3 MB brotli, cached after the first visit), and the model for
+the selected script. The other script's model loads when you switch to it.
+Two exports of each model are committed, all hashed into the build:
 
-| Export | File | Size | EMNIST top-1 | Load (Chrome, this machine, dev server) | Per character (median) |
+| Export | File | Size | Benchmark top-1 | Load (Chrome, this machine, dev server) | Per character (median) |
 |---|---|---|---|---|---|
-| int8 dynamic quantisation (**default**) | `emnist_cnn.int8.onnx` | 1.72 MB (1.0 MB brotli) | 87.04 % | 864 ms first visit, 270–500 ms cached | 61 ms = 39.5 ms preprocessing + 22 ms inference |
-| fp32 | `emnist_cnn.onnx` | 6.85 MB (6.3 MB brotli) | 87.06 % | 565 ms cached | 44 ms = 38.9 ms preprocessing + 4.6 ms inference |
+| English int8 (**default**) | `emnist_cnn.int8.onnx` | 1.72 MB (1.0 MB brotli) | 87.04 % | 864 ms first visit, 270–500 ms cached | 61 ms = 39.5 ms preprocessing + 22 ms inference |
+| English fp32 | `emnist_cnn.onnx` | 6.85 MB (6.3 MB brotli) | 87.06 % | 565 ms cached | 44 ms = 38.9 ms preprocessing + 4.6 ms inference |
+| Bengali int8 (**default**) | `bn_cnn.int8.onnx` | 1.73 MB | 88.27 % | 64 ms when switching (runtime already loaded) | 71 ms = 43 ms preprocessing + 28 ms inference |
+| Bengali fp32 | `bn_cnn.onnx` | 6.88 MB | 88.32 % | not measured | not measured |
 
-The int8 export is shipped because it costs 0.02 percentage points of
-accuracy for a quarter of the download; its integer kernels are slower in
-WASM than fp32 floats, but both are well under the one-second pause that
+The int8 exports are shipped because they cost 0.02–0.05 percentage points
+of accuracy for a quarter of the download; their integer kernels are slower
+in WASM than fp32 floats, but both are well under the one-second pause that
 triggers recognition. `?model=fp32` (or `VITE_LOCAL_MODEL=fp32`) switches.
 `?recognition=server` (or `VITE_RECOGNITION=server`) disables on-device
-recognition to exercise the fallback. Timings come from
-`window.__airscriptRecognition` in a dev build.
+recognition to exercise the fallback (English only: the server has no
+Bengali model). Timings come from `window.__airscriptRecognition` in a dev
+build.
 
 What the server is still for: `/process-text` (correction), `/suggest` and
 `/autocomplete` (word prediction) and `/learn` (personal dictionary). When it
@@ -109,6 +115,27 @@ handwritten `l`, which is why `L`/`1`/`I` and `O`/`0` dominate: the shapes are
 the same and only context can separate them. That is the job of the
 correction pipeline, which turns `HELL0` into `Hello`.
 
+**Bengali: BanglaLekha-Isolated, held-out writers, 24,851 samples, 84 classes.**
+Produced by `ai-service/evaluate_bn.py` on 17 October 2026, stored in
+[`docs/accuracy-bengali.json`](docs/accuracy-bengali.json). The split is by
+handwriting form, so none of these writers was seen in training.
+
+| Model | Top-1 | Top-3 |
+|---|---|---|
+| PyTorch (`bn_cnn.pth`) | 88.32 % | 96.00 % |
+| ONNX fp32 (`bn_cnn.onnx`) | 88.32 % | 96.00 % |
+| ONNX int8 (`bn_cnn.int8.onnx`) | 88.27 % | 95.96 % |
+
+![Confusion matrix on held-out BanglaLekha-Isolated writers](docs/confusion-matrix-bengali.png)
+
+The ten most confused pairs: `ক্ষ`→`স্ম` 18.5 %, `স্ক`→`ষ্ণ` 16.8 %,
+`ম্প`→`ষ্প` 16.3 %, `স্ম`→`ক্ষ` 15.6 %, `ভ`→`ড` 12.9 %, `খ`→`থ` 11.2 %,
+`ক্ত`→`ষ্ঠ` 7.1 %, `ষ্প`→`ম্প` 6.4 %, `ঊ`→`উ` 6.4 %, `ঙ্গ`→`প্ত` 6.4 %. Basic
+letters and digits are strong; the errors concentrate in the compound
+characters, which share sub-shapes and sit at the limit of a 28×28 input.
+Training ran 12 epochs on CPU (100 minutes) and validation accuracy was
+still rising slowly, so this is not a converged figure.
+
 **Real strokes: pending.** A benchmark number is not a real-world number: the
 app's strokes are smoother and thicker than EMNIST's scanned pen on paper,
 drawn with a mouse or in the air, and sized by the drawing surface rather
@@ -119,6 +146,65 @@ the recogniser sees, and exports labelled JSON.
 same TypeScript preprocessing and ONNX Runtime the browser uses and writes
 `docs/accuracy-real-strokes.json`. The set has not been drawn yet, so there
 is no real-strokes figure to report.
+
+## Bengali (বাংলা)
+
+Switch the script with the English / বাংলা control in the top bar. Bengali
+recognition runs in the browser too, with its own model
+(`ai-service/model_bn.py`, `BengaliCNN`: the same layer plan as `CharCNN`,
+separate module and weights) trained on
+[BanglaLekha-Isolated](https://data.mendeley.com/datasets/hf6sf8zrkc/2)
+(Biswas et al., 2017, Data in Brief 12:103–107, doi:10.1016/j.dib.2017.03.035),
+licensed **CC BY 4.0**, which allows publishing weights trained on it with
+attribution. Ekush and CMATERdb were considered and passed over because
+neither states a licence. The dataset (197 MB zip, 166,105 images) is
+downloaded to a folder outside the repo (`AIRSCRIPT_BN_DATA_DIR`) and never
+committed.
+
+**What v1 recognises:** 84 isolated characters, the dataset's classes: the
+11 vowels, 39 consonants (including ড় ঢ় য় ৎ ং ঃ ঁ), 10 digits and 24
+compound characters. The folder-to-character mapping for the 60 basic
+classes was verified against the handwriting; the 24 compound labels are a
+reading by eye (`COMPOUNDS` in `model_bn.py`) that still needs a native
+speaker's check. A wrong label is a string change in two files, not a
+retraining.
+
+**Composition rule.** Bengali words attach vowel signs (কার) to consonants,
+and the model only knows isolated characters, so the app composes: an
+independent vowel recognised right after a consonant (or a compound) becomes
+that vowel's sign — ক then ই reads কি, and ব আ ং ল আ reads বাংলা. অ after a
+consonant is dropped (it is the inherent vowel). A vowel at the start of a
+word, after a digit, after a space, or after ৎ ং ঃ ঁ stays independent.
+`client/src/recognition/bengali.ts`, tested in `client/tests/bengali.test.ts`.
+
+**What v1 cannot write:** an independent vowel directly after a consonant
+inside a word (বই, কই, দই — put a space before the vowel), conjuncts outside
+the dataset's 24, anything needing a hasanta (্) or the য-ফলা / র-ফলা forms,
+and punctuation. There is no spelling correction or word prediction in
+Bengali; the app says so under the text. A Bengali word list from wordfreq is
+a possible next step, not done.
+
+Bengali is drawn with thicker ink than English (11 px instead of 4) because
+the training data is thick, edge-thickened scans; the three Bengali replay
+samples (কাক, দাদা, ২০২৫) are polylines traced from a printed font
+(`ai-service/tools/bn_glyph_strokes.py`) and were checked to read as intended
+through the browser pipeline (`npm run check:samples`, and in Chrome). A
+বাংলা sample was tried and dropped: a traced ল sits on the ল/ন decision
+boundary and reads as ন in Chrome, which is itself a fair picture of where
+the model is weak. The UI sets Bengali in Noto Sans Bengali (SIL Open Font
+License, from Google Fonts).
+
+To retrain: put the extracted dataset on E: (or set `AIRSCRIPT_BN_DATA_DIR`),
+then in `ai-service/`:
+
+```bash
+python preprocessing_bn.py          # cache the 28×28 inputs (~10 min, 12 workers)
+python train_bn.py --estimate       # per-epoch time on this machine
+python train_bn.py                  # writes saved_model/bn_cnn.pth + .sha256
+python export_onnx_bn.py --quantize # bn_cnn.onnx, bn_cnn.int8.onnx + checksums
+python evaluate_bn.py               # docs/accuracy-bengali.json + confusion matrix
+cp saved_model/bn_cnn*.onnx ../client/models/
+```
 
 ## The model and its weights
 
@@ -164,10 +250,14 @@ air-script/
 ├── ai-service/            # Python FastAPI — correction pipeline, NLP, recognition fallback
 │   ├── correction/        # Spell correction, disambiguation, punctuation
 │   ├── nlp/               # Word prediction, autocomplete, personal dictionary
-│   ├── saved_model/       # emnist_cnn.pth + .onnx + .int8.onnx, each with a .sha256
+│   ├── saved_model/       # emnist_cnn + bn_cnn: .pth, .onnx, .int8.onnx, each with a .sha256
+│   ├── model_cards/       # Hugging Face model cards (English, Bengali), ready to publish
 │   ├── tests/             # pytest: preprocessing, correction, API, ONNX agreement
 │   ├── tools/             # fixture recorder for the TS parity test, confusion plotter
 │   ├── model.py           # CharCNN architecture (do not change shapes)
+│   ├── model_bn.py        # BengaliCNN + the 84 BanglaLekha labels
+│   ├── preprocessing_bn.py # dataset → cached 28×28 inputs, by-writer split
+│   ├── train_bn.py / export_onnx_bn.py / evaluate_bn.py
 │   ├── preprocessing.py   # 10-step image pipeline (pinned by tests and the TS port)
 │   ├── model_loader.py    # Strict loader: checksum, TorchScript trace
 │   ├── export_onnx.py     # .pth → ONNX (+ int8), checksums, agreement report
@@ -246,7 +336,11 @@ There is no CI; run these locally. Each tier has one command.
 |------|---------|----------------|
 | ai-service | `pip install -r requirements-dev.txt && pytest` | preprocessing shape/normalisation, correction pipeline (known input → known output), `/predict` and `/health` through `TestClient`, refusal to start without valid weights, and the ONNX exports: pinned checksums, graph contract, PyTorch agreement on random inputs and on the EMNIST test split (top-1 agreement ≥ 99.9 %, int8 within 0.5 pp of fp32). The EMNIST tests skip with a message when the data is not under `data/EMNIST/raw` (run `train.py` once or set `AIRSCRIPT_EMNIST_DIR`). |
 | server | `npm run check` | typecheck + gateway proxies JSON and multipart, surfaces upstream status and detail, `/api/health` reports model status |
-| client | `npm run check` | typecheck + stroke validation and payload conversion; the word builder (recognition timing, on-device path, server fallback, correction retry when the service is unreachable); **preprocessing parity**: the TypeScript port against `preprocessing.py` on 70 fixtures (currently 70/70 bit-exact, tolerance one grey level), and the ONNX top-1 from the TypeScript input equals the one from the Python input on every fixture for both exports; `client/models` matches the checksums in `ai-service/saved_model` |
+| client | `npm run check` | typecheck + stroke validation and payload conversion; the word builder (recognition timing, on-device path, server fallback, correction retry when the service is unreachable, Bengali composition with no server call); the Bengali label set and composition rule; the stroke recorder; **preprocessing parity**: the TypeScript port against `preprocessing.py` on 70 fixtures (currently 70/70 bit-exact, tolerance one grey level), and the ONNX top-1 from the TypeScript input equals the one from the Python input on every fixture for all four exports; `client/models` matches the checksums in `ai-service/saved_model` |
+
+`npm run check:samples` in `client/` runs every replay sample through the
+browser pipeline and reports what the models read (expected: every Bengali
+glyph as intended; in English, O reads as 0 and I as L until correction).
 
 Regenerating the parity fixtures after a change to `paintStrokes` or the sample data:
 
@@ -300,11 +394,13 @@ the Space for correction.
 
 Code: MIT, see [LICENSE](LICENSE). Runtime dependencies added for on-device
 recognition are MIT (onnxruntime-web; onnxruntime-node, @napi-rs/canvas and
-pngjs for the tests only). The model is trained on EMNIST (Cohen, Afshar,
-Tapson, van Schaik, 2017, *EMNIST: an extension of MNIST to handwritten
-letters*), derived from NIST Special Database 19; the dataset is not
-redistributed here. Fonts (Fraunces, Inter, JetBrains Mono) are loaded from
-Google Fonts under the SIL Open Font License.
+pngjs for the tests only). The English model is trained on EMNIST (Cohen,
+Afshar, Tapson, van Schaik, 2017, *EMNIST: an extension of MNIST to
+handwritten letters*), derived from NIST Special Database 19. The Bengali
+model is trained on BanglaLekha-Isolated (Biswas et al., 2017), CC BY 4.0.
+Neither dataset is redistributed here. Fonts (Fraunces, Inter, JetBrains
+Mono, Noto Sans Bengali) are loaded from Google Fonts under the SIL Open Font
+License.
 
 ## Author
 

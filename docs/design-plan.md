@@ -116,3 +116,12 @@ use the existing rules.
 | Connection strip | Only exists for *waking* and *offline* when recognition is local, and says what still works (characters appear; raw text until correction returns). | Unchanged. |
 | Uncorrected text | One 11 px grey line under the raw strip: "Raw text — the correction service is unreachable. It will be corrected when the service is back." Removed on the same `fade` the moment correction applies. | Fade only. |
 | Recorder (`?record=1`, dev only) | Replaces the typeset line: the target glyph set in Fraunces at the typeset size in the accent colour, progress in mono, the usual quiet control row. The glyph swaps with the character-resolve motion. | Instant swap. |
+
+### Bengali (October 2026)
+
+| Element | Treatment | Reduced motion |
+|---|---|---|
+| Script switch (top bar) | "English / বাংলা", the same segmented control as Write / Draw, shown in Write mode next to it. Switching clears the line (the two models share no labels). | Thumb jumps. |
+| Bengali type | Noto Sans Bengali (SIL OFL, Google Fonts) at the same sizes as Fraunces wherever recognised text, the last-character glyph, the raw strip and the sample buttons show Bengali; `lang="bn"` on those elements. Fraunces has no Bengali glyphs, so there is no "display serif" for Bengali; weight 400–600 keeps the colour of the line close to the English setting. | — |
+| No correction in Bengali | The same 11 px grey note under the raw strip as the offline case: "Composed on your device: a vowel written after a consonant becomes its sign (ক + ই → কি). Spelling correction is not available in Bengali yet." Suggestions never appear in Bengali. | Fade only. |
+| Bengali samples | Three replay buttons replace the English ones while বাংলা is selected: কাক and দাদা (show the composition rule), ২০২৫. | Unchanged. |

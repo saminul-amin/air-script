@@ -1,10 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, FileDown, PenLine, RotateCcw } from "lucide-react";
-import type { CorrectionStatus, RecognizedChar } from "../types";
+import type { CorrectionStatus, Language, RecognizedChar } from "../types";
 import { useMotion, DUR } from "../motion";
 
 interface TypesetLineProps {
+  language: Language;
   word: RecognizedChar[];
   wordString: string;
   correctedText: string;
@@ -82,6 +83,10 @@ export default function TypesetLine(p: TypesetLineProps) {
   };
 
   const ctl = "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-text-2 transition-ui hover:bg-desk-2 hover:text-text-0";
+  // Bengali is set in Noto Sans Bengali (Fraunces has no Bengali glyphs); the sizes stay the same.
+  const bn = p.language === "bn";
+  const displayFont = bn ? "font-bengali" : "font-display";
+  const lang = bn ? "bn" : "en";
 
   // Say plainly when the text on screen is uncorrected and why.
   const correctionNote =
@@ -91,7 +96,9 @@ export default function TypesetLine(p: TypesetLineProps) {
         ? "Raw text — the correction service is unreachable. It will be corrected when the service is back."
         : p.correctionStatus === "failed"
           ? "Raw text — the correction service returned an error."
-          : null;
+          : p.correctionStatus === "skipped"
+            ? "Composed on your device: a vowel written after a consonant becomes its sign (ক + ই → কি). Spelling correction is not available in Bengali yet."
+            : null;
 
   return (
     <section aria-label="Recognised text" className="flex min-h-[7.5rem] flex-col gap-2">
@@ -104,15 +111,16 @@ export default function TypesetLine(p: TypesetLineProps) {
         ) : editing ? (
           <textarea
             ref={textareaRef}
+            lang={lang}
             value={p.userEditedText ?? ""}
             onChange={(e) => p.onTextEdit(e.target.value)}
             rows={2}
-            className="w-full resize-y rounded-md border border-line-strong bg-desk-1 px-3 py-2 font-display text-[28px] leading-tight text-text-0 outline-none md:text-[34px]"
+            className={`w-full resize-y rounded-md border border-line-strong bg-desk-1 px-3 py-2 ${displayFont} text-[28px] leading-tight text-text-0 outline-none md:text-[34px]`}
           />
         ) : isEdited ? (
-          <p className="font-display text-[40px] leading-tight text-text-0 md:text-[52px]">{p.userEditedText}</p>
+          <p lang={lang} className={`${displayFont} text-[40px] leading-tight text-text-0 md:text-[52px]`}>{p.userEditedText}</p>
         ) : (
-          <p className="font-display text-[40px] leading-tight text-text-0 md:text-[52px]" aria-live="polite">
+          <p lang={lang} className={`${displayFont} text-[40px] leading-tight text-text-0 md:text-[52px]`} aria-live="polite">
             <AnimatePresence mode="popLayout" initial={false}>
               {words.map((w, i) => (
                 <motion.span
@@ -136,7 +144,7 @@ export default function TypesetLine(p: TypesetLineProps) {
 
       {/* Raw strip + controls */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <div className="flex min-h-[1.5rem] items-center gap-[2px] font-mono text-[15px] tracking-[0.08em]">
+        <div lang={lang} className={`flex min-h-[1.5rem] items-center gap-[2px] ${bn ? "font-bengali" : "font-mono"} text-[15px] tracking-[0.08em]`}>
           {p.word.map((ch, i) => (
             <span key={i} className={ch.label === " " ? "w-2" : confidenceClass(ch.confidence)} title={`${ch.label} · ${Math.round(ch.confidence * 100)}%`}>
               {ch.label === " " ? " " : ch.label}

@@ -18,6 +18,7 @@ export default {
         display: ["Fraunces", "Georgia", "Times New Roman", "serif"],
         sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "Menlo", "Consolas", "monospace"],
+        bengali: ["Noto Sans Bengali", "Hind Siliguri", "Nirmala UI", "Vrinda", "sans-serif"],
       },
       transitionTimingFunction: {
         out: "cubic-bezier(0.2, 0, 0, 1)",

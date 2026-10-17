@@ -1,19 +1,21 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import type { CharacterPrediction } from "../types";
+import type { CharacterPrediction, Language } from "../types";
 import { useMotion, DUR } from "../motion";
 
 interface LastCharacterCardProps {
   result: CharacterPrediction | null;
   isRecognizing: boolean;
+  language?: Language;
 }
 
 /**
  * The recognition moment: the resolved glyph rises in, the confidence bar
  * lands, the alternatives line up beneath.
  */
-export default function LastCharacterCard({ result, isRecognizing }: LastCharacterCardProps) {
+export default function LastCharacterCard({ result, isRecognizing, language = "en" }: LastCharacterCardProps) {
   const { t, reduce } = useMotion();
+  const glyphFont = language === "bn" ? "font-bengali" : "font-display";
   // A counter so the same letter twice in a row still re-animates.
   const seq = useRef(0);
   const [key, setKey] = useState(0);
@@ -45,12 +47,13 @@ export default function LastCharacterCard({ result, isRecognizing }: LastCharact
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={t(DUR.slow)}
-                className="font-display text-[44px] leading-none text-text-0"
+                lang={language}
+                className={`${glyphFont} text-[44px] leading-none text-text-0`}
               >
                 {result.prediction || "·"}
               </motion.span>
             ) : (
-              <span className="font-display text-[44px] leading-none text-text-2">·</span>
+              <span className={`${glyphFont} text-[44px] leading-none text-text-2`}>·</span>
             )}
           </AnimatePresence>
         </div>
@@ -82,7 +85,8 @@ export default function LastCharacterCard({ result, isRecognizing }: LastCharact
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={t(DUR.base, { delay: reduce ? 0 : 0.04 * i })}
-              className="inline-flex items-baseline gap-1 rounded-md bg-desk-0 px-2 py-0.5 font-mono text-xs text-text-1"
+              lang={language}
+              className={`inline-flex items-baseline gap-1 rounded-md bg-desk-0 px-2 py-0.5 ${language === "bn" ? "font-bengali" : "font-mono"} text-xs text-text-1`}
             >
               {alt}
               {altConf[i] !== undefined && <span className="text-[10px] text-text-2">{Math.round(altConf[i] * 100)}%</span>}

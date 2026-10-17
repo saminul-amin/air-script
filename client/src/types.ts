@@ -137,6 +137,9 @@ export type TrackingState = "off" | "starting" | "ready" | "error";
 /** Backend reachability, including the cold-start of a sleeping free-tier service. */
 export type ServiceState = "checking" | "waking" | "ready" | "degraded" | "offline";
 
+/** Which script is being written: English (EMNIST Balanced) or Bengali (BanglaLekha-Isolated). */
+export type Language = "en" | "bn";
+
 /** Lifecycle of on-device (ONNX Runtime Web) recognition. */
 export type LocalRecognitionStatus = "off" | "loading" | "ready" | "failed";
 
@@ -151,8 +154,9 @@ export type RecognitionSource = "device" | "server";
  *   applied     – corrected text shown
  *   unavailable – service unreachable; raw text shown, retried when it is back
  *   failed      – service answered with an error; raw text shown
+ *   skipped     – no correction for this script (Bengali); the text is composed locally
  */
-export type CorrectionStatus = "idle" | "scheduled" | "running" | "applied" | "unavailable" | "failed";
+export type CorrectionStatus = "idle" | "scheduled" | "running" | "applied" | "unavailable" | "failed" | "skipped";
 
 export interface ServiceHealth {
   reachable: boolean;
@@ -175,5 +179,9 @@ export interface Sample {
   id: string;
   label: string;
   description: string;
+  /** Which recogniser the sample is for; the row only shows samples of the current script. */
+  language: Language;
+  /** Ink width to replay with (the Bengali training data has thick strokes). */
+  strokeWidth?: number;
   characters: SampleCharacter[];
 }

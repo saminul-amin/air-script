@@ -5,7 +5,7 @@ import { paintStrokes, strokesToImageBlob, strokesToImageData, forRecognition } 
 import type { Point, Stroke, StrokeStyle, StrokeResult, BBox } from "../types";
 
 export const DEFAULT_COLOR = "#1c1f27"; // --ink
-const DEFAULT_LINE_WIDTH = 4;
+export const DEFAULT_LINE_WIDTH = 4;
 
 // Speed-sensitive ink: fast segments thin out, slow ones thicken, within these bounds.
 const INK_MIN_FACTOR = 0.55;

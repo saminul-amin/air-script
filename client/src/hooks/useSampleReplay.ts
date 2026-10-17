@@ -70,6 +70,7 @@ export default function useSampleReplay(targets: ReplayTargets) {
           const character = sample.characters[ci];
           setProgress({ index: ci, total: sample.characters.length, char: character.char });
 
+          let anyAccepted = false;
           for (const stroke of character.strokes) {
             for (const p of stroke) {
               if (token.cancelled) return;
@@ -79,9 +80,15 @@ export default function useSampleReplay(targets: ReplayTargets) {
               await sleep(POINT_INTERVAL_MS, token);
             }
             const result = targetsRef.current.finishStroke();
-            if (result.accepted) targetsRef.current.onDrawingStop();
+            if (result.accepted) {
+              anyAccepted = true;
+              targetsRef.current.onDrawingStop();
+            }
             await sleep(BETWEEN_STROKES_MS, token);
           }
+          // If the character's last stroke was filtered as noise but earlier ones
+          // were kept, the pause timer must still fire for what is on the paper.
+          if (anyAccepted) targetsRef.current.onDrawingStop();
 
           // Let the word builder's pause timer fire, then wait for the request.
           await sleep(RECOGNITION_GRACE_MS, token);

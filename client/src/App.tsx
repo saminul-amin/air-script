@@ -1,6 +1,6 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { AppMode, InputSource, Point, Sample } from "./types";
+import type { AppMode, InputSource, Language, Point, Sample } from "./types";
 import TopBar from "./components/TopBar";
 import ConnectionStrip from "./components/ConnectionStrip";
 import ToolRail from "./components/ToolRail";
@@ -12,7 +12,8 @@ import SampleRow from "./components/SampleRow";
 import RecorderPanel from "./components/RecorderPanel";
 import ShortcutsPanel from "./components/ShortcutsPanel";
 import useHandTracking from "./hooks/useHandTracking";
-import useCanvas from "./hooks/useCanvas";
+import useCanvas, { DEFAULT_LINE_WIDTH } from "./hooks/useCanvas";
+import { BENGALI_INK_WIDTH } from "./data/samples";
 import useWordBuilder from "./hooks/useWordBuilder";
 import useGestures from "./hooks/useGestures";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
@@ -29,6 +30,7 @@ import { useMotion, DUR } from "./motion";
 export default function App() {
   const { t, reduce } = useMotion();
   const [mode, setMode] = useState<AppMode>("writing");
+  const [language, setLanguage] = useState<Language>("en");
 
   // ── Input source: mouse/touch by default, camera on request ─────────
   const [inputSource, setInputSource] = useState<InputSource>("pointer");
@@ -47,7 +49,7 @@ export default function App() {
   const service = useServiceStatus();
 
   // ── On-device recognition: loads after first paint, falls back to the server ──
-  const local = useLocalRecognizer(RECOGNITION_MODE === "device");
+  const local = useLocalRecognizer(RECOGNITION_MODE === "device", language);
 
   const canvas = useCanvas();
   const {
@@ -78,8 +80,20 @@ export default function App() {
     () => (local.status === "off" ? undefined : { getSnapshotPixels, recognize: local.recognize }),
     [local.status, local.recognize, getSnapshotPixels],
   );
-  const wb = useWordBuilder(getSnapshot, clearCanvas, localRecognition);
+  const wb = useWordBuilder(getSnapshot, clearCanvas, localRecognition, language);
   const sg = useSuggestions();
+
+  // Switching script starts a fresh line: the two models share no labels.
+  const { clearAll } = wb;
+  const handleLanguageChange = useCallback(
+    (next: Language) => {
+      if (next === language) return;
+      clearAll();
+      sg.clearSuggestions();
+      setLanguage(next);
+    },
+    [language, clearAll, sg],
+  );
 
   // ── Dev-only recorder (?record=1): strokes are labelled and kept, not recognised ──
   const recorder = useRecorder({ getStrokes, getSnapshot, clearCanvas });
@@ -128,16 +142,23 @@ export default function App() {
     (sample: Sample) => {
       setMode("writing");
       setInputSource("pointer");
+      setLineWidth(sample.strokeWidth ?? (sample.language === "bn" ? BENGALI_INK_WIDTH : DEFAULT_LINE_WIDTH));
       replay.play(sample);
     },
-    [replay],
+    [replay, setLineWidth],
   );
+
+  // The Bengali training data has thick strokes; draw Bengali with thicker ink.
+  useEffect(() => {
+    if (mode === "writing") setLineWidth(language === "bn" ? BENGALI_INK_WIDTH : DEFAULT_LINE_WIDTH);
+  }, [language, mode, setLineWidth]);
 
   // ── Suggestions follow the word ──────────────────────────────────────
   useEffect(() => {
-    if (mode === "writing") sg.updateSuggestions(wb.word, wb.correctedText);
+    // Word prediction is English-only (wordfreq + the personal dictionary).
+    if (mode === "writing" && language === "en") sg.updateSuggestions(wb.word, wb.correctedText);
     else sg.clearSuggestions();
-  }, [wb.word, wb.correctedText, mode]);
+  }, [wb.word, wb.correctedText, mode, language]);
 
   const handleAcceptSuggestion = useCallback(
     (word: string) => {
@@ -253,6 +274,8 @@ export default function App() {
       <TopBar
         mode={mode}
         onModeToggle={setMode}
+        language={language}
+        onLanguageChange={handleLanguageChange}
         inputSource={inputSource}
         onInputSourceChange={setInputSource}
         trackingStatus={tracking.status}
@@ -347,6 +370,7 @@ export default function App() {
 
           {writing && !recording && (
             <TypesetLine
+              language={language}
               word={wb.word}
               wordString={wb.wordString}
               correctedText={wb.correctedText}
@@ -364,7 +388,7 @@ export default function App() {
             />
           )}
 
-          {!recording && <SampleRow onReplay={handleReplay} onStopReplay={replay.stop} isReplaying={replay.isPlaying} trackingError={tracking.error} />}
+          {!recording && <SampleRow language={language} onReplay={handleReplay} onStopReplay={replay.stop} isReplaying={replay.isPlaying} trackingError={tracking.error} />}
         </div>
 
         {/* Right column: collapses to nothing until there is content */}
@@ -379,7 +403,7 @@ export default function App() {
               className="hidden shrink-0 overflow-hidden lg:block"
             >
               <div className="flex w-[280px] flex-col gap-3">
-                <LastCharacterCard result={wb.lastResult} isRecognizing={wb.isRecognizing} />
+                <LastCharacterCard result={wb.lastResult} isRecognizing={wb.isRecognizing} language={language} />
                 <SuggestionsPanel suggestions={sg.suggestions} nextWords={sg.nextWords} autocomplete={sg.autocomplete} onAccept={handleAcceptSuggestion} />
               </div>
             </motion.aside>

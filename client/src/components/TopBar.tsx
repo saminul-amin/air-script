@@ -1,11 +1,14 @@
 import { Camera, CameraOff, Keyboard } from "lucide-react";
 import ModeToggle from "./ModeToggle";
 import InputSourceSwitch from "./InputSourceSwitch";
-import type { AppMode, InputSource, LocalRecognitionStatus, ServiceState, TrackingState } from "../types";
+import LanguageSwitch from "./LanguageSwitch";
+import type { AppMode, InputSource, Language, LocalRecognitionStatus, ServiceState, TrackingState } from "../types";
 
 interface TopBarProps {
   mode: AppMode;
   onModeToggle: (mode: AppMode) => void;
+  language: Language;
+  onLanguageChange: (language: Language) => void;
   inputSource: InputSource;
   onInputSourceChange: (source: InputSource) => void;
   trackingStatus: TrackingState;
@@ -73,6 +76,8 @@ function serviceDot(state: ServiceState, onDevice: boolean): Dot {
 export default function TopBar({
   mode,
   onModeToggle,
+  language,
+  onLanguageChange,
   inputSource,
   onInputSourceChange,
   trackingStatus,
@@ -98,6 +103,7 @@ export default function TopBar({
 
       <div className="mx-auto flex items-center gap-3">
         <ModeToggle mode={mode} onToggle={onModeToggle} />
+        {mode === "writing" && <LanguageSwitch value={language} disabled={inputLocked} onChange={onLanguageChange} />}
         <InputSourceSwitch value={inputSource} trackingStatus={trackingStatus} disabled={inputLocked} onChange={onInputSourceChange} />
         {cameraOn && (
           <button

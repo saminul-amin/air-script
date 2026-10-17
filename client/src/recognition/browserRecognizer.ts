@@ -11,7 +11,6 @@
 import type { CharacterPrediction } from "../types";
 import { preprocessRgba, INPUT_SIZE } from "./preprocess";
 import { classify } from "./classify";
-import { EMNIST_LABELS } from "./labels";
 // The wasm-only ORT bundle inlines its JS glue; only the binary is a separate asset.
 import ortWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.wasm?url";
 
@@ -41,7 +40,11 @@ export interface LocalRecognizer {
   recognize(rgba: Uint8ClampedArray | Uint8Array, width: number, height: number): Promise<Recognition>;
 }
 
-export async function loadLocalRecognizer(modelUrl: string): Promise<LocalRecognizer> {
+/**
+ * Load ORT, fetch `modelUrl` and warm it up. `labels` is the class order the
+ * model was trained with (EMNIST_LABELS or BENGALI_LABELS).
+ */
+export async function loadLocalRecognizer(modelUrl: string, labels: readonly string[]): Promise<LocalRecognizer> {
   const t0 = performance.now();
   const ort = await import("onnxruntime-web/wasm");
   ort.env.wasm.wasmPaths = { wasm: ortWasmUrl };
@@ -82,7 +85,7 @@ export async function loadLocalRecognizer(modelUrl: string): Promise<LocalRecogn
       const out = await session.run(feed(input));
       const p2 = performance.now();
       const logits = out.logits.data as Float32Array;
-      return { result: classify(logits, EMNIST_LABELS), preprocessMs: p1 - p0, inferenceMs: p2 - p1 };
+      return { result: classify(logits, labels), preprocessMs: p1 - p0, inferenceMs: p2 - p1 };
     },
   };
 }

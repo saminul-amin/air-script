@@ -1,8 +1,9 @@
 import { Play, ShieldCheck, Square } from "lucide-react";
-import type { Sample } from "../types";
+import type { Language, Sample } from "../types";
 import { SAMPLES } from "../data/samples";
 
 interface SampleRowProps {
+  language: Language;
   onReplay: (sample: Sample) => void;
   onStopReplay: () => void;
   isReplaying: boolean;
@@ -10,18 +11,19 @@ interface SampleRowProps {
 }
 
 /** "Replay a sample" plus the privacy line — the first thing a visitor can click. */
-export default function SampleRow({ onReplay, onStopReplay, isReplaying, trackingError }: SampleRowProps) {
+export default function SampleRow({ language, onReplay, onStopReplay, isReplaying, trackingError }: SampleRowProps) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
       <div className="flex items-center gap-1.5">
         <span className="mr-1 text-text-2">Replay a sample</span>
-        {SAMPLES.map((s) => (
+        {SAMPLES.filter((s) => s.language === language).map((s) => (
           <button
             key={s.id}
             disabled={isReplaying}
             onClick={() => onReplay(s)}
             title={s.description}
-            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-desk-1 px-2.5 py-1.5 font-mono text-text-1 transition-ui hover:border-line-strong hover:text-text-0 disabled:cursor-not-allowed disabled:opacity-40"
+            lang={s.language}
+            className={`inline-flex items-center gap-1.5 rounded-md border border-line bg-desk-1 px-2.5 py-1.5 ${s.language === "bn" ? "font-bengali" : "font-mono"} text-text-1 transition-ui hover:border-line-strong hover:text-text-0 disabled:cursor-not-allowed disabled:opacity-40`}
           >
             <Play className="h-3 w-3" /> {s.label}
           </button>

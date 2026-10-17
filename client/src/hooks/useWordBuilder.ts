@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { ApiError, recognizeCharacter, processText } from "../utils/api";
-import type { RecognizedChar, CharacterPrediction, CorrectionStatus, RecognitionSource } from "../types";
+import { composeBengali } from "../recognition/bengali";
+import type { RecognizedChar, CharacterPrediction, CorrectionStatus, Language, RecognitionSource } from "../types";
 
 const CHAR_PAUSE_MS = 1000;        // Pause after drawing stops → auto-recognize
 const CORRECTION_DELAY_MS = 2000;  // Idle after last char change → run correction
@@ -40,7 +41,7 @@ const MAX_CORRECTION_RETRIES = 2;
  *  - Defers correction until word boundaries (space) or idle timeout, and
  *    keeps it pending while the correction service is unreachable
  */
-export default function useWordBuilder(getSnapshot, clearCanvas, local?: LocalRecognition) {
+export default function useWordBuilder(getSnapshot, clearCanvas, local?: LocalRecognition, language: Language = "en") {
   const [word, setWord] = useState([]);
   const [isRecognizing, setIsRecognizing] = useState(false);
   const [lastResult, setLastResult] = useState(null);
@@ -58,6 +59,8 @@ export default function useWordBuilder(getSnapshot, clearCanvas, local?: LocalRe
   const pendingCorrection = useRef<{ chars: RecognizedChar[]; retries: number } | null>(null); // correction still owed
   const localRef = useRef(local);
   localRef.current = local;
+  const languageRef = useRef(language);
+  languageRef.current = language;
   const hasNewStrokes = useRef(false);
   const lastStopTime = useRef<number | null>(null); // when the previous character's last stroke ended
   const pendingPauseMs = useRef(0);                  // idle time before the current character's first stroke
@@ -94,6 +97,16 @@ export default function useWordBuilder(getSnapshot, clearCanvas, local?: LocalRe
         setRawText("");
         pendingCorrection.current = null;
         setCorrectionStatus("idle");
+        return;
+      }
+      if (languageRef.current === "bn") {
+        // No server-side correction for Bengali yet: the text is composed on
+        // the device (vowels after consonants become their signs), nothing is sent.
+        const labels = chars.map((c) => c.label);
+        setRawText(labels.join(""));
+        setCorrectedText(composeBengali(labels));
+        pendingCorrection.current = null;
+        setCorrectionStatus("skipped");
         return;
       }
       setIsProcessing(true);
@@ -137,7 +150,7 @@ export default function useWordBuilder(getSnapshot, clearCanvas, local?: LocalRe
     };
 
     setCorrectionStatus("scheduled");
-    if (immediate) {
+    if (immediate || languageRef.current === "bn") {
       doCorrection();
     } else {
       correctionTimer.current = setTimeout(doCorrection, CORRECTION_DELAY_MS);
