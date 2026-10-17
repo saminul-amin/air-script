@@ -125,3 +125,10 @@ use the existing rules.
 | Bengali type | Noto Sans Bengali (SIL OFL, Google Fonts) at the same sizes as Fraunces wherever recognised text, the last-character glyph, the raw strip and the sample buttons show Bengali; `lang="bn"` on those elements. Fraunces has no Bengali glyphs, so there is no "display serif" for Bengali; weight 400–600 keeps the colour of the line close to the English setting. | — |
 | No correction in Bengali | The same 11 px grey note under the raw strip as the offline case: "Composed on your device: a vowel written after a consonant becomes its sign (ক + ই → কি). Spelling correction is not available in Bengali yet." Suggestions never appear in Bengali. | Fade only. |
 | Bengali samples | Three replay buttons replace the English ones while বাংলা is selected: কাক and দাদা (show the composition rule), ২০২৫. | Unchanged. |
+
+### How it works (October 2026)
+
+| Element | Treatment | Reduced motion |
+|---|---|---|
+| "How it works" (top bar) | An `Info` icon button with the label on wider screens, next to the shortcuts button, same quiet style. | — |
+| The panel | A centred sheet (max 48 rem) in `desk-1` with the usual border and the `label` heading, scrolling inside; the same `rise` preset as the shortcuts sheet, Esc closes. Content is 12 px body on `text-1`, 13 px medium headings on `text-0`, numbers in mono, confusion-matrix images with a 1 px `line` border and 11 px captions. Everything numeric comes from `docs/accuracy-*.json` through `npm run sync:accuracy`, never typed in. | Fade only. |

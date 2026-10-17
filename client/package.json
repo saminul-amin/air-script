@@ -12,7 +12,8 @@
     "check": "npm run typecheck && npm run test",
     "fixtures:preprocessing": "vite-node scripts/make-preprocessing-fixtures.ts",
     "evaluate:real-strokes": "vite-node scripts/evaluate-real-strokes.ts",
-    "check:samples": "vite-node scripts/check-samples.ts"
+    "check:samples": "vite-node scripts/check-samples.ts",
+    "sync:accuracy": "vite-node scripts/sync-accuracy.ts"
   },
   "dependencies": {
     "@mediapipe/camera_utils": "^0.3.1675466862",

@@ -342,6 +342,13 @@ There is no CI; run these locally. Each tier has one command.
 browser pipeline and reports what the models read (expected: every Bengali
 glyph as intended; in English, O reads as 0 and I as L until correction).
 
+The **How it works** panel in the app (top bar) shows the pipeline, the
+accuracy tables and the confusion matrices. Its numbers are generated from
+`docs/accuracy-*.json` by `npm run sync:accuracy`
+(`client/src/data/accuracy.generated.ts` plus the matrix images under
+`client/src/assets`), and a client test fails if that copy is stale, so the
+app can never show a number that was not measured.
+
 Regenerating the parity fixtures after a change to `paintStrokes` or the sample data:
 
 ```bash

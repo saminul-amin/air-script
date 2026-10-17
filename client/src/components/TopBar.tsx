@@ -1,4 +1,4 @@
-import { Camera, CameraOff, Keyboard } from "lucide-react";
+import { Camera, CameraOff, Info, Keyboard } from "lucide-react";
 import ModeToggle from "./ModeToggle";
 import InputSourceSwitch from "./InputSourceSwitch";
 import LanguageSwitch from "./LanguageSwitch";
@@ -19,6 +19,8 @@ interface TopBarProps {
   onWebcamToggle: () => void;
   showShortcuts: boolean;
   onShortcutsToggle: () => void;
+  showHowItWorks: boolean;
+  onHowItWorksToggle: () => void;
 }
 
 interface Dot {
@@ -88,6 +90,8 @@ export default function TopBar({
   onWebcamToggle,
   showShortcuts,
   onShortcutsToggle,
+  showHowItWorks,
+  onHowItWorksToggle,
 }: TopBarProps) {
   const onDevice = recognitionStatus === "ready" || recognitionStatus === "loading";
   const recognition = recognitionDot(recognitionStatus);
@@ -134,6 +138,15 @@ export default function TopBar({
             </dd>
           </div>
         </dl>
+        <button
+          onClick={onHowItWorksToggle}
+          aria-pressed={showHowItWorks}
+          title="How it works: the pipeline and the measured accuracy"
+          className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs transition-ui ${showHowItWorks ? "bg-desk-2 text-text-0" : "text-text-2 hover:text-text-1"}`}
+        >
+          <Info className="h-4 w-4" />
+          <span className="hidden md:inline">How it works</span>
+        </button>
         <button
           onClick={onShortcutsToggle}
           aria-pressed={showShortcuts}

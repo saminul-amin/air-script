@@ -11,6 +11,7 @@ import SuggestionsPanel from "./components/SuggestionsPanel";
 import SampleRow from "./components/SampleRow";
 import RecorderPanel from "./components/RecorderPanel";
 import ShortcutsPanel from "./components/ShortcutsPanel";
+import HowItWorksPanel from "./components/HowItWorksPanel";
 import useHandTracking from "./hooks/useHandTracking";
 import useCanvas, { DEFAULT_LINE_WIDTH } from "./hooks/useCanvas";
 import { BENGALI_INK_WIDTH } from "./data/samples";
@@ -45,6 +46,7 @@ export default function App() {
 
   const [showWebcam, setShowWebcam] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   const service = useServiceStatus();
 
@@ -286,6 +288,8 @@ export default function App() {
         onWebcamToggle={() => setShowWebcam((v) => !v)}
         showShortcuts={showShortcuts}
         onShortcutsToggle={() => setShowShortcuts((v) => !v)}
+        showHowItWorks={showHowItWorks}
+        onHowItWorksToggle={() => setShowHowItWorks((v) => !v)}
       />
 
       <ConnectionStrip
@@ -297,6 +301,7 @@ export default function App() {
       />
 
       <AnimatePresence>{showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} />}</AnimatePresence>
+      <AnimatePresence>{showHowItWorks && <HowItWorksPanel onClose={() => setShowHowItWorks(false)} />}</AnimatePresence>
 
       <main className="flex min-h-0 flex-1 gap-4 px-4 py-4 md:px-6">
         <ToolRail
