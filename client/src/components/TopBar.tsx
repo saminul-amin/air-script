@@ -124,14 +124,14 @@ export default function TopBar({
       <div className="flex shrink-0 items-center gap-4">
         <dl className="flex items-center gap-4 whitespace-nowrap text-xs">
           <div className="flex items-center gap-2" title={recognition.title}>
-            <dt className="hidden text-text-2 lg:inline">Recognition</dt>
+            <dt className="hidden text-text-2 xl:inline">Recognition</dt>
             <dd className="flex items-center gap-1.5 text-text-1">
               <span className={`h-2 w-2 shrink-0 rounded-full ${recognition.cls}`} />
               {recognition.label}
             </dd>
           </div>
           <div className="flex items-center gap-2" title={service.title}>
-            <dt className="hidden text-text-2 lg:inline">{onDevice ? "Correction" : "Service"}</dt>
+            <dt className="hidden text-text-2 xl:inline">{onDevice ? "Correction" : "Service"}</dt>
             <dd className="flex items-center gap-1.5 text-text-1">
               <span className={`h-2 w-2 shrink-0 rounded-full ${service.cls}`} />
               {service.label}
