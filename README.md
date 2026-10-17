@@ -381,6 +381,13 @@ vercel --prod
 Keep the `crons` entry in `client/vercel.json` while the client still calls
 the Space for correction.
 
+**Models → Hugging Face.** The model cards are in `ai-service/model_cards/`
+(one per model, with the measured numbers). `ai-service/publish_models.sh`
+prints what it would create and upload; with `--go` it creates
+`saminul-amin/airscript-charcnn-en` and `-bn` (if missing) and uploads the
+`.pth`, both ONNX exports, their checksums and the card. Run `hf auth login`
+yourself first; the script never handles a token. Not published yet.
+
 ## Using it
 
 - **Mouse / touch** is the default input. Draw one character at a time; lift
