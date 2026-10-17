@@ -35,6 +35,7 @@ env/
 ai-service/data/EMNIST/
 ai-service/data/MNIST/
 ai-service/data/personal_dictionary.json
+ai-service/data/banglalekha/
 
 # AI Service - trained weights are committed (ai-service/saved_model/emnist_cnn.pth, ~6.8 MB)
 ai-service/saved_model/*.part

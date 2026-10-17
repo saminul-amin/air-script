@@ -44,8 +44,8 @@ TOP_K = 3
 MOST_CONFUSED = 10
 
 
-def metrics(logits: np.ndarray, labels: np.ndarray) -> dict:
-    n_classes = len(EMNIST_LABELS)
+def metrics(logits: np.ndarray, labels: np.ndarray, class_names: list[str] = EMNIST_LABELS) -> dict:
+    n_classes = len(class_names)
     pred = logits.argmax(1)
     topk = np.argsort(-logits, axis=1)[:, :TOP_K]
     top1 = float((pred == labels).mean())
@@ -54,7 +54,7 @@ def metrics(logits: np.ndarray, labels: np.ndarray) -> dict:
     confusion = np.zeros((n_classes, n_classes), dtype=np.int64)
     np.add.at(confusion, (labels, pred), 1)
     per_class = {
-        EMNIST_LABELS[c]: {
+        class_names[c]: {
             "support": int(confusion[c].sum()),
             "accuracy": float(confusion[c, c] / confusion[c].sum()) if confusion[c].sum() else None,
         }
@@ -71,8 +71,8 @@ def metrics(logits: np.ndarray, labels: np.ndarray) -> dict:
             break
         most_confused.append(
             {
-                "true": EMNIST_LABELS[t],
-                "predicted": EMNIST_LABELS[p],
+                "true": class_names[t],
+                "predicted": class_names[p],
                 "count": int(off[t, p]),
                 "share_of_true_class": float(off[t, p] / confusion[t].sum()),
             }
@@ -87,13 +87,21 @@ def metrics(logits: np.ndarray, labels: np.ndarray) -> dict:
     }
 
 
-def save_confusion_png(confusion: np.ndarray, path: str, title: str) -> None:
+def save_confusion_png(confusion: np.ndarray, path: str, title: str, class_names: list[str] = EMNIST_LABELS) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib import font_manager
 
-    n = len(EMNIST_LABELS)
+    n = len(class_names)
+    # Bengali labels need a font with Bengali glyphs; DejaVu (matplotlib's default) has none.
+    font = None
+    if any(ord(ch) > 0x0980 for name in class_names for ch in name):
+        for candidate in ("C:/Windows/Fonts/Nirmala.ttf", "C:/Windows/Fonts/vrinda.ttf", "/usr/share/fonts/truetype/noto/NotoSansBengali-Regular.ttf"):
+            if os.path.exists(candidate):
+                font = font_manager.FontProperties(fname=candidate, size=8)
+                break
     row_norm = confusion / np.maximum(confusion.sum(axis=1, keepdims=True), 1)
     fig, ax = plt.subplots(figsize=(13, 12), dpi=110)
     # Log-ish scale so the off-diagonal confusions are visible next to a ~90% diagonal.
@@ -101,8 +109,12 @@ def save_confusion_png(confusion: np.ndarray, path: str, title: str) -> None:
     im = ax.imshow(shown, cmap="magma", interpolation="nearest")
     ax.set_xticks(range(n))
     ax.set_yticks(range(n))
-    ax.set_xticklabels(EMNIST_LABELS, fontsize=8, family="monospace")
-    ax.set_yticklabels(EMNIST_LABELS, fontsize=8, family="monospace")
+    if font is not None:
+        ax.set_xticklabels(class_names, fontproperties=font, rotation=90)
+        ax.set_yticklabels(class_names, fontproperties=font)
+    else:
+        ax.set_xticklabels(class_names, fontsize=8, family="monospace")
+        ax.set_yticklabels(class_names, fontsize=8, family="monospace")
     ax.set_xlabel("predicted")
     ax.set_ylabel("true")
     ax.set_title(title)

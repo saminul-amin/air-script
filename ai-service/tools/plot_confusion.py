@@ -37,7 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     stem = os.path.basename(args.report).replace("accuracy-", "confusion-matrix-").rsplit(".", 1)[0]
     out = os.path.join(os.path.dirname(os.path.abspath(args.report)), stem + ".png")
     title = f"{report.get('dataset', '')} — {key} — top-1 {m['top1'] * 100:.2f}% ({m['samples']} samples)"
-    save_confusion_png(np.array(m["confusion_matrix"]), out, title)
+    save_confusion_png(np.array(m["confusion_matrix"]), out, title, list(report["classes"]))
     print(f"wrote {out}")
     return 0
 
